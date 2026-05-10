@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-header: "Satoshi", sans-serif;
+  --font-body: "Poppins", sans-serif;
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-tertiary: var(--color-tertiary);
+}
+
+:root {
+  --color-primary: #FFF4E8;
+  --color-secondary: #2C0901;
+  --color-tertiary: #FFFFFF;
+  --font-main: 'Inter', sans-serif;
+  --font-secondary: 'Plus Jakarta Sans', sans-serif;
+}
+
+#root {
+  background-color: var(--color-primary);
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+}

@@ -1,0 +1,140 @@
+{
+  "navbar": {
+    "brandName": "የኛ",
+    "searchPlaceholder": "Search reports...",
+    "authStatus": "Authorized Session",
+    "links": {
+      "howTo": "How to Report",
+      "report": "Report Issue",
+      "local": "Local Reports"
+    },
+    "profile": {
+      "settings": "Profile Settings",
+      "logout": "Logout",
+      "signOut": "Sign Out",
+      "signIn": "Sign In"
+    }
+  },
+  "hero": {
+    "title": "Report & View Local",
+    "titleHighlight": "Problems",
+    "description": "Like fire hazards, water-related issues, electricity-related problems, and road damage.",
+    "buttons": {
+      "report": "Report Issue",
+      "useLocation": "Use current location",
+      "locating": "Locating..."
+    }
+  },
+  "map": {
+    "selectedLocation": "Selected Location",
+    "liveStatus": "Live Map: Addis Ababa"
+  },
+  "howTo": {
+    "workflow": "Workflow",
+    "mainTitle": "How to Report",
+    "stepLabel": "Step",
+    "steps": {
+      "step1": {
+        "title": "Pin the Location",
+        "desc": "Use your GPS or the search bar to mark the exact spot of the problem on a map."
+      },
+      "step2": {
+        "title": "Add Issue Details",
+        "desc": "Describe the situation and upload a clear photo. Our AI will help prioritize the case."
+      },
+      "step3": {
+        "title": "Send Your Report",
+        "desc": "Submit your report to be instantly routed to the responsible city department."
+      },
+      "step4": {
+        "title": "Track the Fix",
+        "desc": "Monitor progress on your profile and get a notification as soon as it is resolved."
+      }
+    },
+    "telegram": {
+      "prompt": "Prefer Telegram?",
+      "cta": "Start reporting with"
+    }
+  },
+  "recentReports": {
+    "title": "Recent Reports",
+    "subtitle": "Live updates from the streets of Addis.",
+    "viewAll": "View All Reports",
+    "timeAgo": "2H AGO",
+    "near": "Near",
+    "viewDetails": "View Details"
+  },
+  "reports": {
+    "status": {
+      "submitted": "SUBMITTED",
+      "resolved": "RESOLVED",
+      "under_review": "UNDER REVIEW",
+      "in_progress": "IN PROGRESS",
+      "rejected": "REJECTED"
+    },
+    "items": {
+      "waterLeakage": "Water Leakage",
+      "pothole": "Pothole",
+      "waste4Kilo": "Waste Accumulation - 4 Kilo",
+      "fixedLight": "Fixed Light",
+      "drainageMexico": "Blocked Drainage - Mexico",
+      "sidewalkMegenagna": "Broken Sidewalk - Megenagna",
+      "streetLightSaris": "Street Light Out - Saris",
+      "potholeGullele": "Pothole - Gullele",
+      "damagedPipeGerji": "Damaged Pipe - Gerji",
+      "manholeStadium": "Manhole Cover Missing - Stadium",
+      "dumpingShola": "Illegal Dumping - Shola"
+    }
+  },
+  "stats": {
+    "systemMetrics": "System Performance Metrics",
+    "mainTitle": "Our Civic Impact",
+    "description": "A real-time overview of the platform, showcasing our commitment to municipal management.",
+    "total": {
+      "label": "Total Reports",
+      "trend": "Live"
+    },
+    "fixed": {
+      "label": "Fixed Last Month"
+    },
+    "weekly": {
+      "label": "Reports Past Week"
+    }
+  },
+  "cta": {
+    "title1": "Better Cities",
+    "title2": "start with you",
+    "desc": "A centralized digital record replace manual reporting. Join the network ensuring efficiency.",
+    "button": "Get Started",
+    "stats": {
+      "resolution": "Resolution Rate",
+      "live": "Live Reports",
+      "fixed": "Fixed Month"
+    }
+  },
+  "footer": {
+    "about": "A centralized digital platform for reporting civic issues in Addis Ababa. Strengthening accountability through AI.",
+    "rights": "All rights reserved.",
+    "contact": {
+      "title": "Contact Info",
+      "location": "Addis Ababa, Ethiopia"
+    },
+    "links": {
+      "title": "Quick Links",
+      "map": "City Map",
+      "help": "Help Center"
+    },
+    "categories": {
+      "title": "Categories",
+      "road": "Road Damage",
+      "water": "Water Leakage",
+      "electric": "Electrical Outage",
+      "fire": "Fire Hazard",
+      "sanitation": "Sanitation"
+    },
+    "language": {
+      "title": "Language"
+    }
+  }
+}
+
