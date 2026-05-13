@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
 
 interface LocationData {
   lat: number;
@@ -19,7 +19,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState(false);
 
 
-  const fetchAddress = async (lat: number, lng: number) => {
+  const fetchAddress = useCallback(async (lat: number, lng: number) => {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
@@ -40,9 +40,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error("Global Geocoding failed:", error);
       return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
-  };
+  }, []);
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       console.error("Geolocation is not supported by this browser.");
       return;
@@ -67,13 +67,16 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
+  }, [fetchAddress]);
 
   useEffect(() => {
     if (!location) {
-      requestLocation();
+      const timer = window.setTimeout(() => {
+        requestLocation();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
-  }, []);
+  }, [location, requestLocation]);
 
   return (
     <LocationContext.Provider value={{ location, isLoading, requestLocation }}>

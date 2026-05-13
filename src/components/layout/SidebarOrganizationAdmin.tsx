@@ -6,8 +6,6 @@ import {
   ClipboardList,
   LogOut,
   Map,
-  MessageSquare,
-  Settings,
   X
 } from 'lucide-react';
 
@@ -30,14 +28,13 @@ const SidebarOrganizationAdmin = ({ onClose }: SidebarProps) => {
   const statusDotClass = isVerified ? 'bg-[#2BD96B]' : 'bg-[#E05A5A]';
 
   const navItems = [
-    { label: 'My Queue', to: '/organization-admin/dashboard', icon: ClipboardList, badge: 2 },
-    { label: 'District Map', to: '/organization-admin/map', icon: Map },
-    { label: 'Resolved Tickets', to: '/organization-admin/resolved', icon: CheckSquare },
-    { label: 'Messages', to: '/organization-admin/messages', icon: MessageSquare },
+    { label: 'My Queue', to: '/organization-admin/dashboard/dashboard', icon: ClipboardList, badge: 2 },
+    { label: 'District Map', to: '/organization-admin/dashboard/map', icon: Map },
+    { label: 'Resolved Tickets', to: '/organization-admin/dashboard/resolved', icon: CheckSquare },
   ];
 
   return (
-    <aside className="flex h-screen w-72 shrink-0 flex-col overflow-y-auto rounded-r-[2rem] md:rounded-r-[4rem] bg-[#6E4B33] py-8 text-[#F6EEE3] shadow-xl">
+    <aside className="flex h-screen w-64 shrink-0 flex-col overflow-y-auto rounded-r-[2rem] md:rounded-r-[4rem] bg-[#6E4B33] py-8 text-[#F6EEE3] shadow-xl">
       <div className="mb-8 px-8 border-b border-white/10 pb-4 flex justify-between items-start">
         <div>
           <h1 className="text-[32px] font-extrabold leading-none tracking-tight">CivicWorks</h1>
@@ -94,18 +91,7 @@ const SidebarOrganizationAdmin = ({ onClose }: SidebarProps) => {
 
       <div className="space-y-1 px-4 pb-3 mt-auto">
         <NavLink
-          to="/organization-admin/settings"
-          className={({ isActive }) =>
-            `flex w-full items-center gap-2 rounded-lg px-4 py-3 text-sm transition ${
-              isActive ? 'bg-white/10 text-white font-semibold' : 'text-[#EFDCC6] hover:bg-[#5D3F2C]/70'
-            }`
-          }
-        >
-          <Settings size={14} />
-          Settings
-        </NavLink>
-        <NavLink
-          to="/organization-admin/notifications"
+          to="/organization-admin/dashboard/notifications"
           className={({ isActive }) =>
             `flex w-full items-center gap-2 rounded-lg px-4 py-3 text-sm transition ${
               isActive ? 'bg-white/10 text-white font-semibold' : 'text-[#EFDCC6] hover:bg-[#5D3F2C]/70'

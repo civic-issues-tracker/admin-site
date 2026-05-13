@@ -33,7 +33,7 @@ const OrganizationAdminDashboardPage = () => {
 	const navigate = useNavigate();
 	const seed = user?.email ?? user?.id ?? user?.full_name;
 	const [searchQuery, setSearchQuery] = useState('');
-	const { tickets, resolvedTickets, isLoading, error, updateStatus, updateInternalNotes, assignUnit } = useOrganizationAdminIssues(seed);
+	const { tickets, resolvedTickets, isLoading, error, updateStatus, updateInternalNotes } = useOrganizationAdminIssues(seed);
 	const [showResolved, setShowResolved] = useState(false);
 
 	// All tickets (active + resolved) for selection lookup
@@ -74,23 +74,11 @@ const OrganizationAdminDashboardPage = () => {
 
 	const openDirections = () => {
 		if (!selected) return;
-		navigate('/organization-admin/map');
+		navigate('/organization-admin/dashboard/map');
 		showToast(`Opened the Bole map for ${selected.issueNumber}.`, 'success');
 	};
 
-	const assignCrew = () => {
-		if (!selected) return;
-		const unit = 'Unit 4';
-		assignUnit(selected.id, unit);
-		showToast(`Assigned ${unit} to ${selected.issueNumber}.`, 'success');
-	};
-
-	const requestEquipment = () => {
-		if (!selected) return;
-		showToast(`Equipment request queued for ${selected.issueNumber}.`, 'success');
-	};
-
-	const sendNote = async () => {
+const sendNote = async () => {
 		if (!selected) return;
 		if (!note.trim()) return;
 		try {
@@ -308,14 +296,6 @@ const OrganizationAdminDashboardPage = () => {
 							<h4 className="mb-1 text-sm font-semibold text-[#4B392B]">Reporter Info</h4>
 							<p className="text-sm font-semibold text-[#3E2D20]">{selected.reporter ?? 'Unknown reporter'}</p>
 							<p className="text-xs text-[#8E7B6A]">{selected.reporterPhone ?? 'No contact details available'}</p>
-						</div>
-
-						<div className="rounded-xl border border-[#E2D6C9] bg-[#F8F3ED] p-3">
-							<h4 className="mb-1 text-sm font-semibold text-[#4B392B]">Dispatch Actions</h4>
-							<div className="flex gap-2 text-xs">
-								<button onClick={assignCrew} className="rounded-full border border-[#DCCDBE] px-3 py-1">Assign Crew</button>
-								<button onClick={requestEquipment} className="rounded-full border border-[#DCCDBE] px-3 py-1">Request Equipment</button>
-							</div>
 						</div>
 					</div>
 

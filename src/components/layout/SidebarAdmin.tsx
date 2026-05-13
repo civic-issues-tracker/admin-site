@@ -11,18 +11,19 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const SidebarAdmin: React.FC = () => {
+  const { logout } = useAuth();
+  
   const menuItems = [
-    { name: 'Dashboard', path: '/admin-dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Analytics', path: '/admin/analytics', icon: <BarChart3 size={20} /> },
-    { name: 'Issues', path: '/admin/issues', icon: <AlertCircle size={20} /> },
-    { name: 'Organizations', path: '/admin/organizations', icon: <Building2 size={20} /> },
-    { name: 'Categories', path: '/admin/categories', icon: <BarChart3 size={20} /> },
-    { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
-    { name: 'AI Monitoring', path: '/admin/ai-monitoring', icon: <Monitor size={20} /> },
-    { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
+    { name: 'Dashboard', path: '/admin-dashboard/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Analytics', path: '/admin-dashboard/analytics', icon: <BarChart3 size={20} /> },
+    { name: 'Issues', path: '/admin-dashboard/issues', icon: <AlertCircle size={20} /> },
+    { name: 'Organizations', path: '/admin-dashboard/organizations', icon: <Building2 size={20} /> },
+    { name: 'Categories', path: '/admin-dashboard/categories', icon: <BarChart3 size={20} /> },
+    { name: 'Users', path: '/admin-dashboard/users', icon: <Users size={20} /> },
+    { name: 'AI Monitoring', path: '/admin-dashboard/AiMonitoring', icon: <Monitor size={20} /> },
+    { name: 'Settings', path: '/admin-dashboard/settings', icon: <Settings size={20} /> },
   ];
 
-  const { logout } = useAuth(); 
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -40,7 +41,7 @@ const SidebarAdmin: React.FC = () => {
   };
 
   return (
-    <aside className="w-72 h-screen bg-[#5C4033] text-white flex flex-col py-10 rounded-r-[4rem] sticky top-0">
+    <aside className="w-64 h-screen bg-[#5C4033] text-white flex flex-col py-10 rounded-r-[4rem] sticky top-0">
       <div className="px-10 mb-16">
             <Link to="/" className="flex items-center gap-2 md:gap-3 shrink-0 z-110">
                   <LogoIcon size={35} color="var(--color-primary)" />
@@ -70,7 +71,7 @@ const SidebarAdmin: React.FC = () => {
       </nav>
 
       <div className="px-10 mt-auto">
-        <button 
+        <button
           className="flex items-center gap-4 py-4 opacity-60 hover:opacity-100 hover:text-red-300 transition-all"
           onClick={handleLogout}
         >
