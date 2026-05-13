@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import  { useState, useEffect, useMemo } from 'react';
 import { 
   IoSearchOutline, 
   IoFilterOutline, 
@@ -14,6 +14,7 @@ import {
 } from "react-icons/io5";
 import Table from './../../../components/ui/Table';
 import UserDetailDrawer from './UserDetailDrawer'
+import Toast from '../../../components/ui/Toast';
 
 // --- HELPERS ---
 const getStatusStyle = (status: string) => {
@@ -29,6 +30,7 @@ const AdminUsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -66,13 +68,13 @@ const AdminUsersPage = () => {
 
         // await privateApi.patch(`/users/${id}/`, { status: newStatus });
         // Update local state for immediate feedback
-        setUsers((prevUsers) =>
+        setUsers((prevUsers: unknown) =>
           prevUsers.map((user) =>
             user.id === id ? { ...user, status: newStatus } : user
           )
         );
 
-        showToast(
+        Toast(
           `User ${isSuspending ? "suspended" : "activated"} successfully`, 
           isSuspending ? "info" : "success"
         );
@@ -89,7 +91,7 @@ const AdminUsersPage = () => {
           // Filter out the deleted user
           setUsers((prevUsers) => prevUsers.filter((user) => user.id !== id));
           
-          showToast("User account has been permanently deleted.", "success");
+          Toast("User account has been permanently deleted.", "success");
         }
         
         setActiveMenu(null);

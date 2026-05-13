@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import AdminHeader from "../../../components/layout/AdminHeader";
 import BaseBarChart from "../../../components/ui/BaseBarChart";
 import BasePieChart from "../../../components/ui/BasePieChart";
 
@@ -7,7 +6,7 @@ const AdminAnalyticsPage: React.FC = () => {
   const primaryColor = "#5C4033"; // Deep Brown
   const secondaryColor = "#E5D3B3"; // Sand-Gold
   
-  const [hoverData, setHoverData] = useState<{ x: number, y: number, val: string } | null>(null);
+  // const [hoverData, setHoverData] = useState<{ x: number, y: number, val: string } | null>(null);
 
   // Monthly Report Data
   const monthlyResolutionData = [

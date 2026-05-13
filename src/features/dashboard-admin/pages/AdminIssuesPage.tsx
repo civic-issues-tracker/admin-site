@@ -21,21 +21,22 @@ const getStatusStyle = (status: string) => {
   }
 };
 
-const MOCK_ISSUES = Array.from({ length: 20 }).map((_, i) => ({
-  id: `ISS-${1000 + i}`,
-  reporter: ["Hebron Enyew", "Abebe Kebede", "Sara Tekle", "Mulugeta Belay"][i % 4],
-  location_address: ["Bole, Addis Ababa", "Gerji", "Megenagna", "Piassa", "Casanchis"][i % 5],
-  category: ["Roads", "Water", "Electricity", "Waste Management"][i % 4],
-  department: ["Infrastructure", "Utility", "Sanitation"][i % 3],
-  status: ["Submitted", "In Progress", "Solved"][i % 3],
-  created_at: `2026-05-${String((i % 12) + 1).padStart(2, '0')}`,
-}));
+// const MOCK_ISSUES = Array.from({ length: 20 }).map((_, i) => ({
+//   id: `ISS-${1000 + i}`,
+//   reporter: ["Hebron Enyew", "Abebe Kebede", "Sara Tekle", "Mulugeta Belay"][i % 4],
+//   location_address: ["Bole, Addis Ababa", "Gerji", "Megenagna", "Piassa", "Casanchis"][i % 5],
+//   category: ["Roads", "Water", "Electricity", "Waste Management"][i % 4],
+//   department: ["Infrastructure", "Utility", "Sanitation"][i % 3],
+//   status: ["Submitted", "In Progress", "Solved"][i % 3],
+//   created_at: `2026-05-${String((i % 12) + 1).padStart(2, '0')}`,
+// }));
 
 const AdminIssuesPage: React.FC = () => {
   const [issues, setIssues] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     const fetchIssues = async () => {
@@ -45,7 +46,7 @@ const AdminIssuesPage: React.FC = () => {
         setIssues(response.data);
       } catch (error) {
         console.error("Error fetching issues:", error);
-        Toast("Failed to load reported issues.", "error");
+        Toast("Failed to load reported issues.");
       } finally {
         setLoading(false);
       }
@@ -54,13 +55,19 @@ const AdminIssuesPage: React.FC = () => {
     fetchIssues();
   }, []);
 
+  {loading && (
+    <div className="flex items-center justify-center h-64">
+      <p className="text-secondary/40">Loading issues...</p>
+    </div>
+  )}
+
   // SEARCH & FILTER 
   const filteredIssues = useMemo(() => {
   return issues.filter((issue) => {
     const reporter = (issue.reporter || "").toLowerCase();
     const address = (issue.location_address || "").toLowerCase();
     const category = (issue.category || "").toLowerCase();
-    const id = (String(issue.id) || "").toLowerCase(); // Ensure ID is a string
+    const id = (String(issue.id) || "").toLowerCase(); 
     const search = searchTerm.toLowerCase();
 
     const matchesSearch = 
@@ -166,9 +173,15 @@ const AdminIssuesPage: React.FC = () => {
   ];
 
   const handleViewDetails = (issue: any) => {
-  setSelectedIssue(issue);
   setIsDrawerOpen(true);
 };
+
+{isDrawerOpen && (
+  <IssueDetailDrawer 
+    issue={selectedIssue} 
+    onClose={() => setIsDrawerOpen(false)} 
+  />
+)}
 
 const handleResolveIssue = async (id: string, currentStatus: string) => {
   if (currentStatus === "Resolved") return;
@@ -185,9 +198,9 @@ const handleResolveIssue = async (id: string, currentStatus: string) => {
     try {
       // API call to update Django backend
       // await privateApi.patch(`/issues/${id}/`, { status: "Resolved" });
-      showToast("Issue successfully resolved", "success");
+      Toast("Issue successfully resolved");
     } catch (error) {
-      showToast("Failed to update issue status", "error");
+      Toast("Failed to update issue status");
       // Optional: Rollback state on error
     }
   }
@@ -238,7 +251,9 @@ const handleResolveIssue = async (id: string, currentStatus: string) => {
       <Table 
         columns={columns} 
         data={filteredIssues} 
-        onRowClick={(issue) => handleRowClick(issue)} 
+        onRowClick={(issue) => {
+          setSelectedIssue(issue);
+        }} 
       />
     </div>
   );

@@ -1,4 +1,3 @@
-import React from 'react';
 import { IoCloseOutline, IoPersonCircleOutline, IoMailOutline, IoCalendarOutline, IoShieldCheckmarkOutline } from "react-icons/io5";
 
 interface UserDetailDrawerProps {

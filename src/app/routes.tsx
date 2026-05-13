@@ -48,7 +48,7 @@ const router = createBrowserRouter([
       },
       { 
         path: 'admin-dashboard', 
-        element: <AdminOverviewPage /> 
+        element: <AdminOverviewPage reports={mockReports} /> 
       },
       { 
         path: 'admin/issues', 
