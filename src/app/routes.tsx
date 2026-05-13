@@ -35,47 +35,47 @@ const router = createBrowserRouter([
 
   // --- SYSTEM ADMIN DASHBOARD ---
   {
-    path: '/admin-dashboard',
+    path: '/',
     element: (
       <ProtectedRoute allowedRoles={['system_admin']}>
         <DashboardLayout />
       </ProtectedRoute>
     ),
     children: [
-      { 
-        index: true, 
-        element: <Navigate to="dashboard" replace /> 
+      {
+        index: true,
+        element: <Navigate to="dashboard" replace />,
       },
       { 
-        path: 'dashboard', 
-        element: <AdminOverviewPage reports={mockReports} /> 
+        path: 'admin-dashboard', 
+        element: <AdminOverviewPage /> 
       },
       { 
-        path: 'issues', 
+        path: 'admin/issues', 
         element: <AdminIssuesPage /> 
       },
       { 
-        path: 'analytics', 
+        path: 'admin/analytics', 
         element: <AdminAnalyticsPage /> 
       },
       { 
-        path: 'users', 
+        path: 'admin/users', 
         element: <AdminUsersPage /> 
       },
       { 
-        path: 'AiMonitoring', 
+        path: 'admin/AiMonitoring', 
         element: <AdminAiMonitoringPage /> 
       },
       { 
-        path: 'organizations', 
+        path: 'admin/organizations', 
         element: <AdminOrganizationsPage /> 
       },
       { 
-        path: 'categories', 
+        path: 'admin/categories', 
         element: <AdminCategoriesPage /> 
       },
       { 
-        path: 'settings', 
+        path: 'admin/settings', 
         element: <AdminSettingsPage /> 
       },
     ]
@@ -83,7 +83,7 @@ const router = createBrowserRouter([
 
   // --- ORGANIZATION ADMIN DASHBOARD ---
   {
-    path: '/organization-admin/dashboard',
+    path: '/organization-admin',
     element: (
       <ProtectedRoute allowedRoles={['organization_admin']}>
         <OrganizationAdminDashboardLayout />

@@ -44,7 +44,7 @@ const BaseBarChart: React.FC<BaseBarChartProps> = ({ data, title, dataKeys }) =>
               key={item.key} 
               dataKey={item.key} 
               fill={item.color} 
-              radius={[4, 4, 0, 0]} 
+              radius={[5, 5, 0, 0]} 
               barSize={window.innerWidth < 768 ? 8 : 12} 
               name={item.label} 
             />

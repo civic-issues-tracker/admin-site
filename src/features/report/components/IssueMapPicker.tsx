@@ -55,6 +55,7 @@ const MapEvents = ({ onLocationSelect }: { onLocationSelect?: (lat: number, lng:
   return null;
 };
 
+
 const IssueMapPicker: React.FC<MapProps> = ({ reports, onLocationSelect, selectedLocation }) => {
   const { t } = useTranslation(); 
   const defaultCenter: [number, number] = [9.0192, 38.7525];

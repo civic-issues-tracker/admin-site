@@ -1,31 +1,55 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import AdminStatCard from "./AdminStatCard";
 import AdminHeader from "../../../components/layout/AdminHeader";
 import BaseBarChart from "../../../components/ui/BaseBarChart";
 import BasePieChart from "../../../components/ui/BasePieChart";
 import Table from "../../../components/ui/Table";
 import { type Report } from '../../report/components/IssueMapPicker';
+import { type ReportFormData } from "../type";
+import { AdminStatsOverview } from "../services/AdminStatsOverview";
+import { mockReports } from "../../../mock/mockReports";    
+
+type AdminIssue = Report & ReportFormData;
 
 interface AdminOverviewPageProps {
-  reports: Report[];
+  issues?: AdminIssue[]; 
 }
 
-const AdminOverviewPage: React.FC<AdminOverviewPageProps> = ({ reports }) => {
-  const mockStats = [
-    { title: "Total Issues reported", value: "12,482", change: "4.3%", isUp: true, timeframe: "from last month" },
-    { title: "Total Issues Submitted", value: "16,546", change: "8%", isUp: true, timeframe: "from last month" },
-    { title: "Resolution Rate", value: "78%", change: "8%", isUp: false, timeframe: "from last month" },
-    { title: "Active Issues", value: "5,430", change: "4.3%", isUp: true, timeframe: "from last month" },
-  ];
+const AdminOverviewPage: React.FC<AdminOverviewPageProps> = ({ issues = [] }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [liveStats, setLiveStats] = useState({
+    totalReported: "0",
+    totalSolved: "0",
+    activeIssues: "0",
+    resolutionRate: "0%",
+  });
 
-  const barData = [
-    { name: 'Jan', reported: 65, resolved: 40 },
-    { name: 'Feb', reported: 45, resolved: 30 },
-    { name: 'Mar', reported: 85, resolved: 70 },
-    { name: 'Apr', reported: 35, resolved: 25 },
-    { name: 'May', reported: 90, resolved: 75 },
-    { name: 'Jun', reported: 15, resolved: 10 },
-    { name: 'Jul', reported: 55, resolved: 45 },
+  useEffect(() => {
+    const fetchStats = async () => {
+      const data = await AdminStatsOverview.getDashboardStats();
+      setLiveStats(data);
+    };
+    fetchStats();
+  }, []);
+
+  const dataSource = issues.length > 0 ? issues : (mockReports as unknown as AdminIssue[]);
+
+  const filteredIssues = dataSource.filter((issue) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    
+    const location = issue.location_address?.toLowerCase() || "";
+    const category = issue.category?.toLowerCase() || "";
+    const title = (issue as any).title?.toLowerCase() || "";
+
+    return location.includes(query) || category.includes(query) || title.includes(query);
+  });
+
+  const cards = [
+    { title: "Total Issues reported", value: liveStats.totalReported, change: "4.3%", isUp: true, timeframe: "from last month" },
+    { title: "Active Issues", value: liveStats.totalReported, change: "4.3%", isUp: false, timeframe: "from last month" },
+    { title: "Total Issues Solved", value: liveStats.totalSolved, change: "8%", isUp: true, timeframe: "from last month" },
+    { title: "Resolution Rate", value: liveStats.resolutionRate, change: "2%", isUp: true, timeframe: "from last month" },
   ];
 
   const pieData = [
@@ -40,17 +64,17 @@ const AdminOverviewPage: React.FC<AdminOverviewPageProps> = ({ reports }) => {
     { header: 'Title', key: 'title' },
     { 
       header: 'Location', 
-      key: 'location',
-      render: (report: Report) => (
-        <span className="text-[10px] font-medium">
-          {report.location_lat.toFixed(2)}, {report.location_long.toFixed(2)}
+      key: 'location_address', 
+      render: (item: AdminIssue) => (
+        <span className="text-[10px] font-medium truncate max-w-37.5 inline-block">
+          {item.location_address || "N/A"}
         </span>
       )
     },
     { 
       header: 'Status', 
       key: 'status',
-      render: (report: Report) => {
+      render: (report: AdminIssue) => {
         const statusStyles: Record<string, string> = {
           resolved: 'bg-green-100 text-green-700',
           rejected: 'bg-red-100 text-red-700',
@@ -63,17 +87,17 @@ const AdminOverviewPage: React.FC<AdminOverviewPageProps> = ({ reports }) => {
           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
             statusStyles[report.status] || 'bg-gray-100 text-gray-600'
           }`}>
-            {report.status.replace('_', ' ')}
+            {(report.status || 'pending').replace('_', ' ')}
           </span>
         );
       }
     },
     { 
-      header: 'Created At', 
-      key: 'createdAt',
-      render: (report: Report) => (
+      header: 'Date Reported', 
+      key: 'Date',
+      render: (report: AdminIssue) => (
         <span className="text-secondary/40 italic text-[11px]">
-          {new Date(report.created_at).toLocaleDateString()}
+          {report.created_at ? new Date(report.created_at).toLocaleDateString() : 'N/A'}
         </span>
       )
     },
@@ -84,21 +108,34 @@ const AdminOverviewPage: React.FC<AdminOverviewPageProps> = ({ reports }) => {
       <AdminHeader />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {mockStats.map((stat, i) => (
+        {cards.map((stat, i) => (
           <AdminStatCard key={i} {...stat} />
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white rounded-[2.5rem] md:rounded-[3rem] shadow-sm border border-secondary/5 overflow-hidden">
-          <BaseBarChart 
-            title="Reported & Resolved Issues per Month"
-            data={barData}
-            dataKeys={[
-              { key: 'reported', color: '#5C4033', label: 'Reported' },
-              { key: 'resolved', color: '#E5D3B3', label: 'Resolved' }
-            ]}
-          />
+          <div className="overflow-y-auto">
+            <BaseBarChart 
+              title="Monthly Report Activity"
+              data={[
+                { name: 'Jan', reported: 65, solved: 40 },
+                { name: 'Feb', reported: 45, solved: 30 },
+                { name: 'Mar', reported: 85, solved: 70 },
+                { name: 'Apr', reported: 35, solved: 25 },
+                { name: 'May', reported: 90, solved: 75 },
+                { name: 'Jun', reported: 55, solved: 45 },
+                { name: 'Jul', reported: 55, solved: 45 },
+                { name: 'Aug', reported: 55, solved: 45 },
+                { name: 'Sep', reported: 55, solved: 45 },
+                { name: 'Oct', reported: 55, solved: 45 },
+              ]}
+              dataKeys={[
+                { key: 'reported', color: '#5C4033', label: 'Issues Reported' },
+                { key: 'solved', color: '#E5D3B3', label: 'Issues Solved' }
+              ]}
+            />
+          </div>
         </div>
         <div className="bg-white rounded-[2.5rem] md:rounded-[3rem] shadow-sm border border-secondary/5 overflow-hidden">
           <BasePieChart 
@@ -110,14 +147,38 @@ const AdminOverviewPage: React.FC<AdminOverviewPageProps> = ({ reports }) => {
 
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4">
-          <h3 className="text-sm font-black text-secondary uppercase tracking-[0.2em]">Recent Activity</h3>
+          <h3 className="text-sm font-black text-secondary uppercase tracking-[0.2em]">
+            {searchQuery ? "Search Results" : "Recent Activity"}
+          </h3>
+          <div className="relative w-full md:w-72">
+            <input
+              type="text"
+              placeholder="Search by location, title, or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-secondary/10 rounded-full px-6 py-2.5 text-xs font-bold text-secondary outline-none focus:border-secondary/30 transition-all placeholder:text-secondary/30"
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              <svg className="w-4 h-4 text-secondary/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
           <button className="text-[10px] w-fit font-bold text-secondary/40 uppercase hover:text-secondary transition-colors text-left">
             View All Reports
           </button>
         </div>
         
         <div className="bg-white rounded-[2.5rem] overflow-x-auto border border-secondary/5 shadow-sm">
-          <Table columns={columns} data={reports} />
+          <Table<AdminIssue> 
+            columns={columns as any} 
+            data={filteredIssues} 
+          />
+          {filteredIssues.length === 0 && (
+            <div className="p-12 text-center text-secondary/40 text-[10px] font-black uppercase tracking-widest">
+              No matching reports found
+            </div>
+          )}
         </div>
       </div>
     </div>
