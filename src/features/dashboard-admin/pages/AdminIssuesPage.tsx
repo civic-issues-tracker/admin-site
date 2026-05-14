@@ -64,18 +64,23 @@ const AdminIssuesPage: React.FC = () => {
   // SEARCH & FILTER 
   const filteredIssues = useMemo(() => {
   return issues.filter((issue) => {
-    const reporter = (issue.reporter || "").toLowerCase();
+    const reporter = (issue.reporter_name || "").toLowerCase();
     const address = (issue.location_address || "").toLowerCase();
-    const category = (issue.category || "").toLowerCase();
+    const category = (typeof issue.category === 'string' 
+      ? issue.category 
+      : issue.category?.name || ""
+    ).toLowerCase();
     const id = (String(issue.id) || "").toLowerCase(); 
     const search = searchTerm.toLowerCase();
 
+    // Search logic
     const matchesSearch = 
       reporter.includes(search) ||
       address.includes(search) ||
       category.includes(search) ||
       id.includes(search);
 
+    // Status filter logic
     const matchesStatus = statusFilter === "All" || issue.status === statusFilter;
     
     return matchesSearch && matchesStatus;
