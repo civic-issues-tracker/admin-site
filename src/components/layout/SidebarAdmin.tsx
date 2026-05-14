@@ -14,14 +14,14 @@ const SidebarAdmin: React.FC = () => {
   const { logout } = useAuth();
   
   const menuItems = [
-    { name: 'Dashboard', path: '/admin-dashboard/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Analytics', path: '/admin-dashboard/analytics', icon: <BarChart3 size={20} /> },
-    { name: 'Issues', path: '/admin-dashboard/issues', icon: <AlertCircle size={20} /> },
-    { name: 'Organizations', path: '/admin-dashboard/organizations', icon: <Building2 size={20} /> },
-    { name: 'Categories', path: '/admin-dashboard/categories', icon: <BarChart3 size={20} /> },
-    { name: 'Users', path: '/admin-dashboard/users', icon: <Users size={20} /> },
-    { name: 'AI Monitoring', path: '/admin-dashboard/AiMonitoring', icon: <Monitor size={20} /> },
-    { name: 'Settings', path: '/admin-dashboard/settings', icon: <Settings size={20} /> },
+    { name: 'Dashboard', path: '/admin-dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Analytics', path: '/admin/analytics', icon: <BarChart3 size={20} /> },
+    { name: 'Issues', path: '/admin/issues', icon: <AlertCircle size={20} /> },
+    { name: 'Organizations', path: '/admin/organizations', icon: <Building2 size={20} /> },
+    { name: 'Categories', path: '/admin/categories', icon: <BarChart3 size={20} /> },
+    { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
+    { name: 'AI Monitoring', path: '/admin/AiMonitoring', icon: <Monitor size={20} /> },
+    { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
 
   const navigate = useNavigate();
