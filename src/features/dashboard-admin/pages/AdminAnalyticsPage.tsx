@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import BaseBarChart from "../../../components/ui/BaseBarChart";
 import BasePieChart from "../../../components/ui/BasePieChart";
 

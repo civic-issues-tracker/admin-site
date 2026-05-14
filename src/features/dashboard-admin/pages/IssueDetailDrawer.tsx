@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Calendar, User, Tag, AlertCircle, Phone, Mail, Clock } from 'lucide-react';
+import { X, MapPin, User,  AlertCircle, Phone, Mail, Clock } from 'lucide-react';
 
 interface IssueDetailDrawerProps {
   issue: any;
