@@ -3,7 +3,7 @@ import { privateApi } from '../features/auth/services/authService';
 import Toast, { type ToastType } from '../components/ui/Toast'; 
 import { type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
 
-interface User {
+export interface User {
   id: string;
   user_number?: string;
   email?: string;

@@ -10,7 +10,7 @@ import {
 } from "react-icons/io5";
 import Table from './../../../components/ui/Table'; 
 import { privateApi } from '../../auth/services/authService';
-import Toast from '../../../components/ui/Toast';
+import toast from 'react-hot-toast';
 
 //HELPERS & MOCK DATA
 const getStatusStyle = (status: string) => {
@@ -46,7 +46,7 @@ const AdminIssuesPage: React.FC = () => {
         setIssues(response.data);
       } catch (error) {
         console.error("Error fetching issues:", error);
-        Toast("Failed to load reported issues.");
+        toast.error("Failed to load reported issues.");
       } finally {
         setLoading(false);
       }
@@ -174,14 +174,9 @@ const AdminIssuesPage: React.FC = () => {
 
   const handleViewDetails = (issue: any) => {
   setIsDrawerOpen(true);
+  console.log("Viewing details for issue:", issue);
 };
 
-{isDrawerOpen && (
-  <IssueDetailDrawer 
-    issue={selectedIssue} 
-    onClose={() => setIsDrawerOpen(false)} 
-  />
-)}
 
 const handleResolveIssue = async (id: string, currentStatus: string) => {
   if (currentStatus === "Resolved") return;
@@ -198,9 +193,9 @@ const handleResolveIssue = async (id: string, currentStatus: string) => {
     try {
       // API call to update Django backend
       // await privateApi.patch(`/issues/${id}/`, { status: "Resolved" });
-      Toast("Issue successfully resolved");
+      toast.success("Issue successfully resolved");
     } catch (error) {
-      Toast("Failed to update issue status");
+      toast.error("Failed to update issue status");
       // Optional: Rollback state on error
     }
   }
@@ -252,9 +247,23 @@ const handleResolveIssue = async (id: string, currentStatus: string) => {
         columns={columns} 
         data={filteredIssues} 
         onRowClick={(issue) => {
-          setSelectedIssue(issue);
+          console.log("Row clicked:", issue);
         }} 
       />
+
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xl">
+            <button
+              onClick={() => setIsDrawerOpen(false)}
+              className="mb-4 text-sm text-secondary/60"
+            >
+              Close
+            </button>
+            <p className="text-secondary">Issue details panel</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

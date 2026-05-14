@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import  LogoIcon  from '../../assets/icons/logoIcon';
+import { useAuth } from '../../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const SidebarAdmin: React.FC = () => {
   const menuItems = [
@@ -18,6 +21,23 @@ const SidebarAdmin: React.FC = () => {
     { name: 'AI Monitoring', path: '/admin/ai-monitoring', icon: <Monitor size={20} /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
+
+  const { logout } = useAuth(); 
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      //Execute the logic defined in your AuthContext
+      await logout(); 
+      
+      //Feedback and Redirect
+      toast.success("Logged out safely");
+      navigate('/login'); 
+    } catch (error) {
+      toast.error("Error during logout");
+      console.error(error);
+    }
+  };
 
   return (
     <aside className="w-72 h-screen bg-[#5C4033] text-white flex flex-col py-10 rounded-r-[4rem] sticky top-0">
@@ -50,7 +70,10 @@ const SidebarAdmin: React.FC = () => {
       </nav>
 
       <div className="px-10 mt-auto">
-        <button className="flex items-center gap-4 py-4 opacity-60 hover:opacity-100 hover:text-red-300 transition-all">
+        <button 
+          className="flex items-center gap-4 py-4 opacity-60 hover:opacity-100 hover:text-red-300 transition-all"
+          onClick={handleLogout}
+        >
           <LogOut size={20} />
           <span className="text-sm font-bold uppercase tracking-widest">Logout</span>
         </button>

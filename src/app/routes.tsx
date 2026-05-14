@@ -7,7 +7,7 @@ import DashboardLayout from './DashboardLayout'
 import AdminOverviewPage from '../features/dashboard-admin/pages/AdminOverviewPage' 
 import AdminOrganizationsPage from '../features/dashboard-admin/pages/AdminOrganizationsPage'
 import AdminCategoriesPage from '../features/dashboard-admin/pages/AdminCategoriesPage'
-import { mockReports } from '../../src/mock/mockReports';
+// import { mockReports } from '../../src/mock/mockReports';
 import AdminIssuesPage from '../features/dashboard-admin/pages/AdminIssuesPage'
 import AdminAnalyticsPage from '../features/dashboard-admin/pages/AdminAnalyticsPage'
 import AdminUsersPage from '../features/dashboard-admin/pages/AdminUsersPage'
@@ -48,7 +48,7 @@ const router = createBrowserRouter([
       },
       { 
         path: 'admin-dashboard', 
-        element: <AdminOverviewPage reports={mockReports} /> 
+        element: <AdminOverviewPage  /> 
       },
       { 
         path: 'admin/issues', 

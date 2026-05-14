@@ -14,7 +14,9 @@ import {
 } from "react-icons/io5";
 import Table from './../../../components/ui/Table';
 import UserDetailDrawer from './UserDetailDrawer'
-import Toast from '../../../components/ui/Toast';
+import toast from 'react-hot-toast';
+// import { privateApi } from '../../auth/services/authService';
+import { type User } from '../../../context/AuthContext';
 
 // --- HELPERS ---
 const getStatusStyle = (status: string) => {
@@ -30,8 +32,8 @@ const AdminUsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
 
@@ -42,6 +44,14 @@ const AdminUsersPage = () => {
     { id: "4", name: "Sara Tekle", email: "sara@example.com", role: "User", status: "Active", joined: "2026-05-10" },
     { id: "5", name: "Green Way NGO", email: "info@greenway.org", role: "Organization", status: "Suspended", joined: "2026-03-15" },
   ];
+
+  <div className="grid gap-2">
+      {users.map((user) => (
+        <div key={user.id} className="p-4 bg-white border border-secondary/5 rounded-xl">
+          <span className="font-bold text-sm uppercase">{user.full_name}</span>
+        </div>
+      ))}
+    </div>
 
   // FILTER LOGIC 
   const filteredUsers = useMemo(() => {
@@ -68,15 +78,15 @@ const AdminUsersPage = () => {
 
         // await privateApi.patch(`/users/${id}/`, { status: newStatus });
         // Update local state for immediate feedback
-        setUsers((prevUsers: unknown) =>
+        setUsers((prevUsers: User[]) =>
           prevUsers.map((user) =>
             user.id === id ? { ...user, status: newStatus } : user
           )
         );
 
-        Toast(
+        toast.success(
           `User ${isSuspending ? "suspended" : "activated"} successfully`, 
-          isSuspending ? "info" : "success"
+          { icon: "✅" }
         );
 
         setActiveMenu(null);
@@ -91,7 +101,7 @@ const AdminUsersPage = () => {
           // Filter out the deleted user
           setUsers((prevUsers) => prevUsers.filter((user) => user.id !== id));
           
-          Toast("User account has been permanently deleted.", "success");
+          toast.success("User account has been permanently deleted.");
         }
         
         setActiveMenu(null);
@@ -172,7 +182,7 @@ const AdminUsersPage = () => {
       {/* DROPDOWN MENU */}
       {activeMenu === user.id && (
         <div 
-          className="absolute right-0 top-12 w-48 bg-tertiary border border-secondary/10 rounded-2xl shadow-2xl z-[100] py-2 animate-in fade-in zoom-in duration-200"
+          className="absolute right-0 top-12 w-48 bg-tertiary border border-secondary/10 rounded-2xl shadow-2xl z-100 py-2 animate-in fade-in zoom-in duration-200"
           onClick={(e) => e.stopPropagation()} 
         >
           <button 
@@ -201,7 +211,7 @@ const AdminUsersPage = () => {
             )}
           </button>
 
-          <div className="h-[1px] bg-secondary/5 my-1 mx-2" />
+          <div className="h-1px bg-secondary/5 my-1 mx-2" />
 
           <button 
             onClick={() => handleDeleteUser(user.id)}
@@ -248,7 +258,7 @@ const AdminUsersPage = () => {
           />
         </div>
 
-        <div className="relative min-w-[200px]">
+        <div className="relative min-w-50">
           <IoFilterOutline className="absolute left-5 top-1/2 -translate-y-1/2 text-secondary/40" size={18} />
           <select 
             className="w-full bg-tertiary border border-secondary/5 rounded-2xl py-4 pl-12 pr-5 text-sm text-secondary outline-none cursor-pointer appearance-none"
