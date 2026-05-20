@@ -43,12 +43,12 @@ describe('organizationAdminWorkspace helpers', () => {
     const ws = getOrganizationAdminWorkspace(seed);
     const ticket = ws.organizationAdminTickets[0];
     expect(ticket).toBeTruthy();
-    const updated = updateTicketStatus(seed, ticket.id, 'In Progress');
+    const updated = updateTicketStatus(seed, ticket.id, 'in_progress');
     expect(updated).not.toBeNull();
-    expect(updated?.status).toBe('In Progress');
+    expect(updated?.status).toBe('in_progress');
     const ws2 = getOrganizationAdminWorkspace(seed);
     const t2 = ws2.organizationAdminTickets.find((t) => t.id === ticket.id);
-    expect(t2?.status).toBe('In Progress');
+    expect(t2?.status).toBe('in_progress');
   });
 
   it('assigns a ticket to a unit', () => {
