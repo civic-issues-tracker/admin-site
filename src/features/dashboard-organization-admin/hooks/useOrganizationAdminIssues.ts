@@ -20,11 +20,15 @@ interface UseOrganizationAdminIssuesResult {
   updateStatus: (ticketId: string, status: IssueStatus) => Promise<void>;
   updateInternalNotes: (ticketId: string, notes: string) => Promise<void>;
   assignUnit: (ticketId: string, unit: string) => void;
+  releaseIssue: (ticketId: string, note?: string) => Promise<void>;
+  escalateIssue: (ticketId: string, reason: string) => Promise<void>;
 }
 
+const isResolvedStatus = (status: OrganizationAdminTicket['status']) => status === 'resolved';
+
 const splitResolved = (tickets: OrganizationAdminTicket[]) => {
-  const resolved = tickets.filter((ticket) => ticket.status === 'Resolved');
-  const active = tickets.filter((ticket) => ticket.status !== 'Resolved');
+  const resolved = tickets.filter((ticket) => isResolvedStatus(ticket.status));
+  const active = tickets.filter((ticket) => !isResolvedStatus(ticket.status));
   return { active, resolved };
 };
 
@@ -80,13 +84,16 @@ export const useOrganizationAdminIssues = (seedValue?: string | null): UseOrgani
     async (ticketId: string, status: IssueStatus) => {
       try {
         const updated = await organizationAdminIssueApi.updateStatus(ticketId, status);
-        const updatedTicket = toOrganizationAdminTicket(updated);
+        const hasFullPayload = Boolean(updated && 'issue_number' in updated);
+        const updatedTicket = hasFullPayload
+          ? toOrganizationAdminTicket(updated as OrganizationAdminIssue)
+          : null;
 
-        if (updatedTicket.status === 'Resolved') {
+        if (updatedTicket && isResolvedStatus(updatedTicket.status)) {
           // Moving TO resolved: remove from active, add to resolved
           setTickets((prev) => prev.filter((t) => t.id !== ticketId));
           setResolvedTickets((prev) => [updatedTicket, ...prev.filter((t) => t.id !== ticketId)]);
-        } else {
+        } else if (updatedTicket) {
           // Moving AWAY from resolved (or between active statuses):
           // remove from resolved list and ensure it exists in active list
           setResolvedTickets((prev) => prev.filter((t) => t.id !== ticketId));
@@ -98,6 +105,11 @@ export const useOrganizationAdminIssues = (seedValue?: string | null): UseOrgani
             // Ticket was in resolvedTickets — bring it back to active
             return [updatedTicket, ...prev];
           });
+        } else {
+          setResolvedTickets((prev) => prev.filter((t) => t.id !== ticketId));
+          setTickets((prev) =>
+            prev.map((t) => (t.id === ticketId ? { ...t, status } : t))
+          );
         }
       } catch {
         updateLocalTicketStatus(seed, ticketId, status);
@@ -119,13 +131,53 @@ export const useOrganizationAdminIssues = (seedValue?: string | null): UseOrgani
     async (ticketId: string, notes: string) => {
       try {
         const updated = await organizationAdminIssueApi.updateInternalNotes(ticketId, notes);
-        const updatedTicket = toOrganizationAdminTicket(updated);
-        setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? updatedTicket : ticket)));
-        setResolvedTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? updatedTicket : ticket)));
+        const hasFullPayload = Boolean(updated && 'issue_number' in updated);
+        const updatedTicket = hasFullPayload
+          ? toOrganizationAdminTicket(updated as OrganizationAdminIssue)
+          : null;
+        if (updatedTicket) {
+          setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? updatedTicket : ticket)));
+          setResolvedTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? updatedTicket : ticket)));
+        } else {
+          setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? { ...ticket, internalNotes: notes } : ticket)));
+          setResolvedTickets((prev) =>
+            prev.map((ticket) => (ticket.id === ticketId ? { ...ticket, internalNotes: notes } : ticket))
+          );
+        }
       } catch (err) {
         console.error('Failed to update internal notes', err);
         throw err;
       }
+    },
+    []
+  );
+
+  const releaseIssue = useCallback(
+    async (ticketId: string, note?: string) => {
+      await organizationAdminIssueApi.release(ticketId, note);
+      setTickets((prev) =>
+        prev.map((ticket) =>
+          ticket.id === ticketId
+            ? { ...ticket, status: 'submitted', assignedAdminName: undefined }
+            : ticket
+        )
+      );
+      setResolvedTickets((prev) => prev.filter((ticket) => ticket.id !== ticketId));
+    },
+    []
+  );
+
+  const escalateIssue = useCallback(
+    async (ticketId: string, reason: string) => {
+      await organizationAdminIssueApi.escalate(ticketId, reason);
+      setTickets((prev) =>
+        prev.map((ticket) =>
+          ticket.id === ticketId
+            ? { ...ticket, status: 'escalated', assignedAdminName: undefined }
+            : ticket
+        )
+      );
+      setResolvedTickets((prev) => prev.filter((ticket) => ticket.id !== ticketId));
     },
     []
   );
@@ -138,6 +190,8 @@ export const useOrganizationAdminIssues = (seedValue?: string | null): UseOrgani
     refresh,
     updateStatus,
     updateInternalNotes,
+    releaseIssue,
+    escalateIssue,
     assignUnit,
   };
 };
