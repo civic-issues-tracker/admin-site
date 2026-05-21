@@ -53,12 +53,6 @@ export const useOrganizationAdminIssues = (seedValue?: string | null): UseOrgani
       try {
         const issues = await organizationAdminIssueApi.getAll();
         if (!isActive) return;
-        if (issues.length === 0) {
-          // Use local seed data when the API returns an empty list.
-          setTickets(fallbackWorkspace.organizationAdminTickets);
-          setResolvedTickets(fallbackWorkspace.resolvedTickets);
-          return;
-        }
 
         const mapped = issues.map((issue: OrganizationAdminIssue) => toOrganizationAdminTicket(issue));
         const { active, resolved } = splitResolved(mapped);
