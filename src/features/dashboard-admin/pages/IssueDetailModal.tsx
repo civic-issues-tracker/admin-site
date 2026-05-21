@@ -75,6 +75,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
     }
   };
 
+
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 animate-fadeIn">
       

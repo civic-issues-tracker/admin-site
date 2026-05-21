@@ -116,24 +116,7 @@ const handleFlagReport = async (issueId: string, currentNotes: string | null, se
   }
 };
 
-// SYSTEM ADMIN NOTE HANDLER
-const handleAddAdminNote = async (issueId: string, currentNotes: string | null, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
-  const noteInput = prompt("Enter administrative internal notes:", currentNotes || "");
-  
-  if (noteInput === null) return; 
 
-  try {
-    await privateApi.patch(`/issues/${issueId}/`, {
-      internal_notes: noteInput
-    });
-
-    toast.success("Admin note updated successfully.");
-    await refreshIssuesFeed(setIssues);
-  } catch (error) {
-    console.error("Error saving admin note:", error);
-    toast.error("Failed to save note.");
-  }
-};
 
 // PERMANENT DELETE HANDLER
 const handlePermanentDelete = async (issueId: string, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
