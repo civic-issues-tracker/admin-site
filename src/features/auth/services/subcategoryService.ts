@@ -29,7 +29,7 @@ export const subcategoryApi = {
     return response.data;
   },
 
-  // 24/25. Update (Full/Partial)
+  // Update (Full/Partial)
   update: async (id: string, name: string) => {
     const response = await privateApi.patch(`/orgs/subcategories/${id}/`, { name });
     return response.data;

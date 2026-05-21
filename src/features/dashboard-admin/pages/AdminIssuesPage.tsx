@@ -2,212 +2,388 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   IoSearchOutline, 
   IoFilterOutline, 
-  IoEyeOutline, 
-  IoCheckmarkCircleOutline, 
-  IoLocationOutline ,
   IoMailOutline,
-  IoCallOutline
 } from "react-icons/io5";
 import Table from './../../../components/ui/Table'; 
 import { privateApi } from '../../auth/services/authService';
 import toast from 'react-hot-toast';
+import ThemeLoader from '../../../components/ui/ThemeLoader';
+import { IssueDetailModal } from './IssueDetailModal';
 
-//HELPERS & MOCK DATA
-const getStatusStyle = (status: string) => {
-  switch (status) {
-    case "Solved": return "bg-green-500/10 text-green-500 border-green-500/20";
-    case "In Progress": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    default: return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
-  }
-};
 
-// const MOCK_ISSUES = Array.from({ length: 20 }).map((_, i) => ({
-//   id: `ISS-${1000 + i}`,
-//   reporter: ["Hebron Enyew", "Abebe Kebede", "Sara Tekle", "Mulugeta Belay"][i % 4],
-//   location_address: ["Bole, Addis Ababa", "Gerji", "Megenagna", "Piassa", "Casanchis"][i % 5],
-//   category: ["Roads", "Water", "Electricity", "Waste Management"][i % 4],
-//   department: ["Infrastructure", "Utility", "Sanitation"][i % 3],
-//   status: ["Submitted", "In Progress", "Solved"][i % 3],
-//   created_at: `2026-05-${String((i % 12) + 1).padStart(2, '0')}`,
-// }));
 
 const AdminIssuesPage: React.FC = () => {
   const [issues, setIssues] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(true);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchIssues = async () => {
       setLoading(true);
       try {
+        setLoading(true);
         const response = await privateApi.get('/issues/'); 
         setIssues(response.data);
       } catch (error) {
         console.error("Error fetching issues:", error);
-        toast.error("Failed to load reported issues.");
+        toast.error("Failed to load reported issues."); 
       } finally {
         setLoading(false);
       }
     };
 
     fetchIssues();
+    console.log("Check my issue data fields:", filteredIssues);
   }, []);
 
   {loading && (
-    <div className="flex items-center justify-center h-64">
-      <p className="text-secondary/40">Loading issues...</p>
-    </div>
-  )}
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+    <ThemeLoader size="lg" />
+  </div>
+)}
 
   // SEARCH & FILTER 
-  const filteredIssues = useMemo(() => {
+const filteredIssues = useMemo(() => {
   return issues.filter((issue) => {
-    const reporter = (issue.reporter_name || "").toLowerCase();
-    const address = (issue.location_address || "").toLowerCase();
-    const category = (typeof issue.category === 'string' 
-      ? issue.category 
-      : issue.category?.name || ""
-    ).toLowerCase();
-    const id = (String(issue.id) || "").toLowerCase(); 
-    const search = searchTerm.toLowerCase();
+    //  HANDLE STATUS FILTER DROPDOWN
+    if (statusFilter !== "All") {
+      const issueStatus = (issue.status || "submitted").toString().toLowerCase();
+      const targetFilter = statusFilter.toLowerCase();
+      
+      // If the status doesn't match the selected filter, drop it immediately
+      if (issueStatus !== targetFilter) return false;
+    }
 
-    // Search logic
-    const matchesSearch = 
-      reporter.includes(search) ||
-      address.includes(search) ||
-      category.includes(search) ||
-      id.includes(search);
-
-    // Status filter logic
-    const matchesStatus = statusFilter === "All" || issue.status === statusFilter;
+    // HANDLE SEARCH BAR TEXT
+    if (!searchTerm.trim()) return true;
     
-    return matchesSearch && matchesStatus;
+    const query = searchTerm.toLowerCase();
+    
+    const location = issue.location_address?.toLowerCase() || "";
+    const category = issue.category_name?.toLowerCase() || issue.category?.toLowerCase() || "";
+    const description = issue.description?.toLowerCase() || (issue as any).title?.toLowerCase() || "";
+    const residentName = issue.resident_name?.toLowerCase() || "";
+    const status = issue.status?.toLowerCase() || "";
+    const createdAt = issue.created_at ? new Date(issue.created_at).toLocaleDateString().toLowerCase() : "";
+    const id = issue.issue_number?.toString().toLowerCase() || issue.id?.slice(0, 8).toLowerCase() || "";   
+
+    return (
+      location.includes(query) || 
+      category.includes(query) || 
+      description.includes(query) ||
+      residentName.includes(query) ||
+      status.includes(query) ||
+      createdAt.includes(query) ||
+      id.includes(query)
+    );
   });
 }, [searchTerm, statusFilter, issues]);
 
-  //  COLUMN DEFINITIONS 
-  const columns = [
-    { header: "ID", key: "id" },
-    {
-    header: "Reporter",
-    key: "reporter",
-    render: (issue: any) => (
-      <div className="flex flex-col">
-        <span className="font-bold text-secondary text-sm">
-          {issue.resident_name || issue.reporter || "Anonymous"}
-        </span>
-        <span className="text-[10px] text-secondary/40 uppercase font-black tracking-tighter">
-          Verified User
-        </span>
-      </div>
-    )
-  },
-    { 
-      header: "Location", 
-      key: "location_address",
-      render: (issue: any) => (
-        <div className="flex items-center gap-2 text-sm text-secondary/80">
-          <IoLocationOutline className="text-secondary/40" />
-          {issue.location_address.slice(0, 30) || "N/A"}
-        </div>
-      )
-    },
-    { header: "Category", key: "category_name" },
-    { 
-      header: "Status", 
-      key: "status",
-      render: (issue: any) => (
-        <span className={`px-4 py-1.5 rounded-full text-[9px] uppercase font-black border ${getStatusStyle(issue.status)}`}>
-          {issue.status}
-        </span>
-      )
-    },
-    {
-    header: "Contact Info",
-    key: "contact",
-    render: (issue: any) => (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 text-xs text-secondary/70">
-          <IoMailOutline size={12} className="text-secondary/30" />
-          {issue.reporter_email || "N/A"}
-        </div>
-        <div className="flex items-center gap-2 text-xs text-secondary/70">
-          <IoCallOutline size={12} className="text-secondary/30" />
-          {issue.reporter_phone || "No Phone"}
-        </div>
-      </div>
-    )
-  },
-    {
-  header: "Actions",
-  key: "actions",
-  render: (issue: any) => (
-    <div className="flex items-center gap-4">
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          handleViewDetails(issue);
-        }}
-        className="p-2.5 rounded-xl bg-secondary/5 text-secondary hover:bg-secondary hover:text-white transition-all duration-300"
-        title="View Details"
-      >
-        <IoEyeOutline size={20} />
-      </button>
-
-     
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          handleResolveIssue(issue.id, issue.status);
-        }}
-        className={`p-2.5 rounded-full transition-all duration-300 ${
-          issue.status === 'Resolved' 
-            ? 'bg-green-500 text-white cursor-default' 
-            : 'text-secondary/40 hover:text-green-500 hover:bg-green-500/10'
-        }`}
-        disabled={issue.status === 'Resolved'}
-        title={issue.status === 'Resolved' ? "Already Resolved" : "Mark as Resolved"}
-      >
-        <IoCheckmarkCircleOutline size={22} />
-      </button>
-    </div>
-  )
-}
-  ];
-
-  const handleViewDetails = (issue: any) => {
-  setIsDrawerOpen(true);
-  console.log("Viewing details for issue:", issue);
-};
-
-
-const handleResolveIssue = async (id: string, currentStatus: string) => {
-  if (currentStatus === "Resolved") return;
-
-  
-  
-  const confirmed = window.confirm("Are you sure you want to mark this issue as Resolved?");
-  
-  if (confirmed) {
-    setIssues(prev => prev.map(issue => 
-      issue.id === id ? { ...issue, status: "Resolved" } : issue
-    ));
-
-    try {
-      // API call to update Django backend
-      // await privateApi.patch(`/issues/${id}/`, { status: "Resolved" });
-      toast.success("Issue successfully resolved");
-    } catch (error) {
-      toast.error("Failed to update issue status");
-      // Optional: Rollback state on error
-    }
+// HELPER FOR FETCHING LATEST DATA STREAM
+const refreshIssuesFeed = async (setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
+  try {
+    const response = await privateApi.get('/issues/');
+    // Handle both cases where data is returned directly or wrapped in a results array (pagination)
+    const freshData = response.data.results || response.data;
+    setIssues(freshData);
+  } catch (error) {
+    console.error("Failed to re-fetch issues snapshot:", error);
   }
 };
 
+// FLAG REPORT HANDLER
+const handleFlagReport = async (issueId: string, currentNotes: string | null, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
+  try {
+    const timeStamp = new Date().toLocaleString();
+    const updatedNotes = currentNotes 
+      ? `[FLAGGED on ${timeStamp}]\n${currentNotes}`
+      : `[FLAGGED on ${timeStamp}] User reported this issue as inappropriate.`;
+
+    // Execute partial update using authenticated instance
+    await privateApi.patch(`/issues/${issueId}/`, {
+      internal_notes: updatedNotes
+    });
+
+    toast.success("Issue has been successfully flagged for admin review.");
+    await refreshIssuesFeed(setIssues);
+  } catch (error) {
+    console.error("Error flagging report:", error);
+    toast.error("Failed to flag the issue. Check permissions.");
+  }
+};
+
+// SYSTEM ADMIN NOTE HANDLER
+const handleAddAdminNote = async (issueId: string, currentNotes: string | null, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
+  const noteInput = prompt("Enter administrative internal notes:", currentNotes || "");
+  
+  if (noteInput === null) return; 
+
+  try {
+    await privateApi.patch(`/issues/${issueId}/`, {
+      internal_notes: noteInput
+    });
+
+    toast.success("Admin note updated successfully.");
+    await refreshIssuesFeed(setIssues);
+  } catch (error) {
+    console.error("Error saving admin note:", error);
+    toast.error("Failed to save note.");
+  }
+};
+
+// PERMANENT DELETE HANDLER
+const handlePermanentDelete = async (issueId: string, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
+  // const confirmDelete = window.confirm("Are you absolutely sure you want to permanently delete this issue? This cannot be undone.");
+  // if (!confirmDelete) return;
+
+  try {
+    await privateApi.delete(`/issues/${issueId}/`);
+    
+    toast.success("Issue deleted successfully.");
+    await refreshIssuesFeed(setIssues); 
+  } catch (error) {
+    console.error("Error deleting issue:", error);
+    toast.error("Failed to delete the issue.");
+  }
+};
+
+  //  COLUMN DEFINITIONS 
+  const columns = [
+  {
+    header: "ID",
+    key: "issue_number", 
+    render: (issue: any) => (
+      <span className="font-mono text-xs text-secondary/60">
+        {issue.issue_number || issue.id?.slice(0, 8)}
+      </span>
+    )
+  },
+  {
+    header: "Reporter",
+    key: "resident_name",
+    render: (issue: any) => {
+      const rawName = issue.resident_name || "Anonymous Resident";
+      const cleanName = rawName.split('(')[0].trim();
+      
+      return (
+        <div className="flex flex-col">
+          <span className="font-bold text-secondary">{cleanName}</span>
+          <span className="text-[10px] uppercase tracking-widest text-primary/60 font-black mt-0.5">
+            Verified User
+          </span>
+        </div>
+      );
+    }
+  },
+  {
+    header: "Location",
+    key: "location_address",
+    render: (issue: any) => {
+      const parts = issue.location_address?.split(',') || [];
+      return (
+        <div className="max-w-45">
+          <p className="font-bold text-secondary truncate">{parts[0] || "Unknown"}</p>
+          <p className="text-xs text-secondary/50 truncate">
+            {parts[1]?.trim() || parts[2]?.trim() || ""}
+          </p>
+        </div>
+      );
+    }
+  },
+  {
+    header: "Category",
+    key: "category_name", 
+  },
+  {
+    header: "Contact Info",
+    key: "contact",
+    render: (issue: any) => {
+      const rawName = issue.resident_name || "";
+      const emailMatch = rawName.match(/\(([^)]+)\)/);
+      const email = emailMatch ? emailMatch[1] : "N/A";
+
+      return (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 text-xs text-secondary/70">
+            <IoMailOutline size={12} className="text-secondary/30" />
+            <span className="lowercase">{email}</span>
+          </div>
+          {/* <div className="flex items-center gap-2 text-xs text-secondary/50">
+            <IoCallOutline size={12} className="text-secondary/30" />
+            <span className="font-mono text-[11px]">No Phone</span>
+          </div> */}
+        </div>
+      );
+    }
+  },
+  {
+    header: "Status",
+    key: "status",
+    render: (issue: any) => {
+      const rawStatus = issue.status || "submitted";
+      
+      const normalizedKey = rawStatus.toString().toLowerCase().replace(/ /g, '_');
+      
+      const statusStyles: Record<string, string> = {
+        submitted: "bg-amber-500/10 text-amber-700 border border-amber-500/20",
+        in_progress: "bg-blue-500/10 text-blue-600 border border-blue-500/20",
+        resolved: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
+        rejected: "bg-red-500/10 text-red-600 border border-red-500/20",
+        pending_admin: "bg-purple-500/10 text-purple-600 border border-purple-500/20",
+        escalated: "bg-rose-500/10 text-rose-700 border border-rose-500/20",
+      };
+
+      const currentStyle = statusStyles[normalizedKey] || "bg-[#E5D3B3]/20 text-[#A07156] border border-[#E5D3B3]/30";
+
+      const displayLabel = rawStatus.toString().replace(/_/g, ' ');
+
+      return (
+        <span className={`px-2.5 py-1 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-150 ${currentStyle}`}>
+          {displayLabel}
+        </span>
+      );
+    }
+  },
+  {
+    header: "Date Reported",
+    key: "created_at",
+    render: (issue: any) => {
+      return (
+        <span className="text-xs text-secondary/60">
+          {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : "N/A"}
+        </span>
+      );
+    }
+  },
+{ 
+  header: 'Actions', 
+  key: 'actions',
+  render: (issue: any) => {
+    const isMenuOpen = openMenuId === issue.id;
+
+    return (
+      <div className="relative inline-block text-left">
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); 
+            setOpenMenuId(isMenuOpen ? null : issue.id);
+          }}
+          className="p-2 hover:bg-secondary/5 text-secondary/40 hover:text-secondary rounded-xl transition-all"
+        >
+          <svg 
+            className="w-4 h-4" 
+            fill="currentColor" 
+            viewBox="0 0 16 16"
+          >
+            <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+          </svg>
+        </button>
+
+        {/* Floating Menu Dropdown */}
+        {isMenuOpen && (
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 mt-2 w-48 bg-white border border-secondary/10 rounded-2xl shadow-xl z-50 py-2 animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            {/* 1. Flag Action */}
+            <button
+              onClick={() => {
+                setOpenMenuId(null);
+                handleFlagReport(issue.id, issue.internal_notes, setIssues);
+                toast.success(`Issue ${issue.issue_number} flagged successfully.`);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-500/5 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+              </svg>
+              Flag Report
+            </button>
+
+            {/* 2. Internal Note Action */}
+            <button
+              onClick={() => {
+                setOpenMenuId(null);
+                handleAddAdminNote(issue.id, issue.internal_notes, setIssues);
+                const note = prompt("Enter system admin internal logs:");
+                if (note) toast.success("Internal note appended.");
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-bold text-secondary/70 hover:bg-secondary/5 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              System Admin Note
+            </button>
+
+            <div className="border-t border-secondary/5 my-1" />
+
+            {/* 3. Permanent Delete Action */}
+            <button
+              onClick={() => {
+                setOpenMenuId(null);
+
+                toast.custom((t) => (
+                  <div
+                    className={`${
+                      t.visible ? "animate-enter" : "animate-leave"
+                    } max-w-md w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col p-5 border border-neutral-100 ring-1 ring-black ring-opacity-5`}
+                  >
+                    <div className="flex flex-col gap-1.5 text-center sm:text-left">
+                      <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2 justify-center sm:justify-start">
+                        <span className="text-lg">⚠️</span> Permanent Action Required
+                      </h3>
+                      <p className="text-xs text-neutral-500 font-medium leading-relaxed">
+                        Do you want to permanently delete issue <strong className="text-neutral-800">{issue.issue_number}</strong>? This data records purge cannot be undone.
+                      </p>
+                    </div>
+
+                    {/* Action Buttons Box */}
+                    <div className="flex gap-2.5 justify-end mt-4 pt-3 border-t border-neutral-50">
+                      <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="px-4 py-2 text-xs font-bold bg-neutral-100 hover:bg-neutral-200 active:scale-95 text-neutral-600 rounded-xl transition-all cursor-pointer"
+                      >
+                        No, Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          toast.dismiss(t.id);
+                          handlePermanentDelete(issue.id, setIssues);
+                        }}
+                        className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl transition-all shadow-sm shadow-red-500/20 cursor-pointer"
+                      >
+                        Yes, Delete Permanently
+                      </button>
+                    </div>
+                  </div>
+                ), {
+                  position: "top-center",         
+                });
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-500/5 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Permanent Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+}
+];
+
+
+
   return (
-    <div className="min-h-screen bg-primary px-6 lg:px-20 py-10 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#FDFBF7] px-6 lg:px-20 py-10 animate-in fade-in duration-500">
       <header className="mb-10">
         <h1 className="font-header text-4xl font-black text-secondary tracking-tighter uppercase">
           Issue <span className="font-light">Management</span>
@@ -228,21 +404,25 @@ const handleResolveIssue = async (id: string, currentStatus: string) => {
           />
         </div>
 
-        <div className="relative min-w-[200px]">
-          <IoFilterOutline className="absolute left-5 top-1/2 -translate-y-1/2 text-secondary/40" size={18} />
+        <div className="relative min-w-50 font-sans">
+          <IoFilterOutline className="absolute left-5 top-1/2 -translate-y-1/2 text-[#2C0901]/40" size={18} />
+          
           <select 
-            className="w-full bg-tertiary border border-secondary/5 rounded-2xl py-4 pl-12 pr-5 text-sm text-secondary outline-none cursor-pointer appearance-none"
+            className="w-full bg-white border border-[#E5D3B3]/30 rounded-2xl py-4 pl-12 pr-5 text-sm font-bold text-[#2C0901] outline-none cursor-pointer appearance-none shadow-sm transition-all hover:border-[#A07156]"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="All">All Statuses</option>
-            <option value="Submitted">Submitted</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Solved">Solved</option>
+            <option value="submitted">Submitted</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="rejected">Rejected</option>
+            <option value="pending_admin">Pending Admin Review</option>
+            <option value="escalated">Escalated</option>
           </select>
 
-          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-secondary/20 text-[10px]">
-                   ▼
+          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#2C0901]/30 text-[9px]">
+            ▼
           </div>
         </div>
       </div>
@@ -252,22 +432,18 @@ const handleResolveIssue = async (id: string, currentStatus: string) => {
         columns={columns} 
         data={filteredIssues} 
         onRowClick={(issue) => {
-          console.log("Row clicked:", issue);
+          setSelectedIssueId(issue.id);
+          setIsModalOpen(true);
         }} 
       />
 
-      {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-xl">
-            <button
-              onClick={() => setIsDrawerOpen(false)}
-              className="mb-4 text-sm text-secondary/60"
-            >
-              Close
-            </button>
-            <p className="text-secondary">Issue details panel</p>
-          </div>
-        </div>
+      {isModalOpen && selectedIssueId && (
+        <IssueDetailModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          issue={filteredIssues.find((i) => i.id === selectedIssueId) || null}
+          setIssues={setIssues}
+        />
       )}
     </div>
   );

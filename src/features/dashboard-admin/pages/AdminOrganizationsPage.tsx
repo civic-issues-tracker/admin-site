@@ -6,6 +6,7 @@ import Table from '../../../components/ui/Table';
 import { organizationApi } from '../../../features/auth/services/OrganizationService';
 import {  Trash2, Edit, Building2, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { OrganizationDetailModal } from './OrganizationDetailModal';
 
 
 // Validation Schema
@@ -32,6 +33,21 @@ interface Organization {
 const AdminOrganizationsPage = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<any | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  const handleRowClick = async (org: Organization) => {
+    try {
+      //Fetch complete details by ID payload on request demand
+      const completeOrgObject = await organizationApi.getById(org.id);
+      
+      setSelectedOrg(completeOrgObject);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error("Could not stream admin profiles:", error);
+    } finally {
+    }
+  };
 
   const {
     register,
@@ -52,6 +68,8 @@ const AdminOrganizationsPage = () => {
       });
       
       setOrganizations(sortedData);
+      console.log("Organizations loaded:", sortedData);
+
     } catch (error) {
       console.error("Failed to load organizations", error);
     }
@@ -156,56 +174,88 @@ const AdminOrganizationsPage = () => {
     });
   };
 
-  const columns = [
-    { header: 'Organization Name', key: 'name' },
-    { 
-      header: 'Email', 
-      key: 'contact_email', 
-      render: (item: Organization) => (
-        <span className="text-secondary/60">{item.contact_email || "N/A"}</span>
-      )
-    },
-    { 
-      header: 'Phone', 
-      key: 'contact_phone', 
-      render: (item: Organization) => (
-        <span className="text-secondary/60">{item.contact_phone || "N/A"}</span>
-      )
-    },
-    { 
-      header: 'Status', 
-      key: 'is_active',
-      render: (item: Organization) => (
-        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-          {item.is_active ? 'Active' : 'Inactive'}
+    const columns = [
+  { 
+    header: 'Organization Name', 
+    key: 'name',
+    render: (item: any) => (
+      <span className="font-extrabold text-[#2C0901] tracking-tight text-[13px]">
+        {item.name}
+      </span>
+    )
+  },
+  { 
+    header: 'Email', 
+    key: 'contact_email', 
+    render: (item: any) => {
+      const rawEmail = item.contact_email;
+      const hasEmail = rawEmail && typeof rawEmail === 'string' && rawEmail.trim().length > 0;
+      
+      return (
+        <span className={`text-[12px] font-medium ${hasEmail ? 'text-neutral-600' : 'text-neutral-400 font-bold opacity-60'}`}>
+          {hasEmail ? rawEmail : "N/A"}
         </span>
-      )
-    },
-    { 
-      header: 'Actions', 
-      key: 'actions',
-      render: (item: Organization) => (
-        <div className="flex gap-4">
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleEditClick(item); }} 
-            className="text-blue-500 hover:text-blue-700 transition-colors"
-          >
-            <Edit size={16}/>
-          </button>
-          <button 
-            onClick={(e) => handleDelete(e, item.id)} 
-            className="text-red-500 hover:text-red-700 transition-colors"
-          >
-            <Trash2 size={16}/>
-          </button>
-        </div>
-      )
-    },
-  ];
+      );
+    }
+  },
+  { 
+    header: 'Phone', 
+    key: 'contact_phone', 
+    render: (item: any) => {
+      const rawPhone = item.contact_phone;
+      const hasPhone = rawPhone && typeof rawPhone === 'string' && rawPhone.trim().length > 0;
+      
+      return (
+        <span className={`text-[12px] font-medium ${hasPhone ? 'text-neutral-600' : 'text-neutral-400 font-bold opacity-60'}`}>
+          {hasPhone ? rawPhone : "N/A"}
+        </span>
+      );
+    }
+  },
+  { 
+    header: 'Status', 
+    key: 'is_active',
+    render: (item: any) => (
+      <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${
+        item.is_active 
+          ? 'bg-[#E5D3B3]/20 text-[#A07156] border border-[#E5D3B3]/30' 
+          : 'bg-red-50 text-red-600 border border-red-100'
+      }`}>
+        {item.is_active ? 'Active' : 'Inactive'}
+      </span>
+    )
+  },
+  { 
+    header: 'Actions', 
+    key: 'actions',
+    render: (item: any) => (
+      <div className="flex gap-3.5">
+        <button 
+          onClick={(e) => { e.stopPropagation(); handleEditClick(item); }} 
+          className="text-[#A07156] hover:text-[#2C0901] transition-colors p-1 hover:bg-neutral-50 rounded-lg"
+        >
+          <Edit size={15}/>
+        </button>
+        <button 
+          onClick={(e) => handleDelete(e, item.id)} 
+          className="text-neutral-400 hover:text-red-600 transition-colors p-1 hover:bg-red-50 rounded-lg"
+        >
+          <Trash2 size={15}/>
+        </button>
+      </div>
+    )
+  },
+];
 
   return (
     <div className="p-4 md:p-8 py-10 md:py-14 space-y-6 md:space-y-8">
-      <h1 className="text-xl md:text-2xl font-header text-secondary uppercase tracking-tighter">Organization Management</h1>
+
+      <header className="mb-10">
+        <h1 className="font-header text-4xl font-black text-secondary tracking-tighter uppercase">
+          Organization <span className="font-light">Management</span>
+        </h1>
+        <p className="font-body text-[10px] text-secondary/40 uppercase tracking-[0.4em] mt-2 font-bold">Admin Control Center</p>
+      </header>
 
       <div className={`p-6 md:p-8 rounded-4xl md:rounded-[2.5rem] shadow-sm border transition-all ${editingId ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-secondary/5'}`}>
         <div className="flex justify-between items-center mb-6">
@@ -258,7 +308,19 @@ const AdminOrganizationsPage = () => {
       </div>
 
       <div className="bg-white rounded-4xl md:rounded-[2.5rem] overflow-x-auto border border-secondary/5 shadow-sm">
-        <Table columns={columns} data={organizations} />
+        <Table columns={columns} 
+        data={organizations}
+        onRowClick={handleRowClick}  />
+        
+        <OrganizationDetailModal 
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedOrg(null);
+            }}
+            organization={selectedOrg}
+            
+      />
       </div>
     </div>
   );

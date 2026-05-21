@@ -7,11 +7,10 @@ import DashboardLayout from './DashboardLayout'
 import AdminOverviewPage from '../features/dashboard-admin/pages/AdminOverviewPage' 
 import AdminOrganizationsPage from '../features/dashboard-admin/pages/AdminOrganizationsPage'
 import AdminCategoriesPage from '../features/dashboard-admin/pages/AdminCategoriesPage'
-// import { mockReports } from '../../src/mock/mockReports';
 import AdminIssuesPage from '../features/dashboard-admin/pages/AdminIssuesPage'
 import AdminAnalyticsPage from '../features/dashboard-admin/pages/AdminAnalyticsPage'
 import AdminUsersPage from '../features/dashboard-admin/pages/AdminUsersPage'
-import AdminAiMonitoringPage from '../features/dashboard-admin/pages/AdminAiMonitoringPage'
+// import AdminAiMonitoringPage from '../features/dashboard-admin/pages/AdminAiMonitoringPage'
 import AdminSettingsPage from '../features/dashboard-admin/pages/AdminSettingsPage'
 import OrganizationAdminDashboardLayout from '../features/dashboard-organization-admin/OrganizationAdminDashboardLayout'
 import OrganizationAdminDashboardPage from '../features/dashboard-organization-admin/pages/OrganizationAdminDashboardPage'
@@ -62,10 +61,10 @@ const router = createBrowserRouter([
         path: 'admin/users', 
         element: <AdminUsersPage /> 
       },
-      { 
-        path: 'admin/AiMonitoring', 
-        element: <AdminAiMonitoringPage /> 
-      },
+      // { 
+      //   path: 'admin/AiMonitoring', 
+      //   element: <AdminAiMonitoringPage /> 
+      // },
       { 
         path: 'admin/organizations', 
         element: <AdminOrganizationsPage /> 

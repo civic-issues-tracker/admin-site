@@ -8,7 +8,7 @@ const AdminLayout: React.FC = () => {
     <div className="flex flex-col md:flex-row min-h-screen bg-[#FDFBF7]"> 
       <SidebarAdmin />
       
-      <main className="flex-1 flex flex-col w-full overflow-x-hidden">
+      <main className="flex-1 flex flex-col w-full overflow-x-hidden bg-[#FDFBF7]">
         <AdminHeader />
         <div className="p-4 md:p-8">
           <Outlet /> 

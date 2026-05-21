@@ -19,7 +19,7 @@
 }
 
 #root {
-  background-color: var(--color-primary);
+  background-color: #FDFBF7;
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;

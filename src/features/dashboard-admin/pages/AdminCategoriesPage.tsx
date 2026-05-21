@@ -228,9 +228,13 @@ const AdminCategoriesPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-4 md:p-8 py-10 md:py-14 space-y-8">
-      <h1 className="text-xl md:text-2xl font-black text-secondary uppercase tracking-tighter">Category Management</h1>
-
+    <div className="p-4 md:p-8 py-10 md:py-14 space-y-8 bg-[#FDFBF7]">
+      <header className="mb-10">
+          <h1 className="font-header text-4xl font-black text-secondary tracking-tighter uppercase">
+            Category <span className="font-light">Management</span>
+          </h1>
+          <p className="font-body text-[10px] text-secondary/40 uppercase tracking-[0.4em] mt-2 font-bold">Admin Control Center</p>
+      </header>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Category Form */}
         <div className="space-y-4">

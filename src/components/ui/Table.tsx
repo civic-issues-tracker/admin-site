@@ -1,4 +1,5 @@
 import React from 'react';
+import ThemeLoader from './ThemeLoader';
 
 interface Column<T> {
   header: string;
@@ -10,18 +11,23 @@ interface TableProps<T> {
   columns: Column<T>[];
   data: T[];
   onRowClick?: (item: T) => void;
+  isLoading?: boolean; 
 }
 
-/**
- * A reusable, high-fidelity Table component styled for the የኛ Fix Admin Dashboard.
- * It uses the brand's tertiary background and secondary color accents.
- */
-const Table = <T extends { id?: string | number }>({ columns, data, onRowClick }: TableProps<T>) => {
+const Table = <T extends { id?: string | number }>({ 
+  columns, 
+  data = [], 
+  onRowClick,
+  isLoading = false 
+}: TableProps<T>) => {
+
+
+  const showLoader = isLoading || !data || data.length === 0;
+
   return (
     <div className="w-full overflow-hidden rounded-[2.5rem] border border-secondary/5 bg-tertiary shadow-2xl shadow-secondary/5">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          {/* Header section with specialized spacing and tracking */}
+        <table className="w-full min-w-175 text-left border-collapse">
           <thead className="bg-secondary/5 border-b border-secondary/5">
             <tr>
               {columns.map((col, i) => (
@@ -35,16 +41,24 @@ const Table = <T extends { id?: string | number }>({ columns, data, onRowClick }
             </tr>
           </thead>
 
-          {/* Table body with custom hover states and transitions */}
           <tbody className="divide-y divide-secondary/5">
-            {data.length > 0 ? (
+            {showLoader ? (
+              <tr>
+                <td colSpan={columns.length} className="px-8 py-32">
+                  <div className="flex justify-center items-center w-full animate-in fade-in duration-300">
+                    <ThemeLoader size="md" />
+                  </div>
+                </td>
+              </tr>
+            ) : data.length > 0 ? (
+              /* SHOW DATA */
               data.map((item, rowIndex) => (
                 <tr 
                   key={item.id || rowIndex} 
                   onClick={() => onRowClick?.(item)}
                   className={`
                     transition-all duration-200 group
-                    ${onRowClick ? 'cursor-pointer hover:bg-primary/50' : ''}
+                    ${onRowClick ? 'cursor-pointer hover:bg-primary/5' : ''} 
                   `}
                 >
                   {columns.map((col, colIndex) => (
@@ -52,7 +66,7 @@ const Table = <T extends { id?: string | number }>({ columns, data, onRowClick }
                       {col.render ? (
                         col.render(item)
                       ) : (
-                        <span className="text-secondary/80">
+                        <span>
                           {String(item[col.key as keyof T] || '')}
                         </span>
                       )}
@@ -61,7 +75,7 @@ const Table = <T extends { id?: string | number }>({ columns, data, onRowClick }
                 </tr>
               ))
             ) : (
-              /* Simple fallback for empty data within the table structure */
+              /* ACTUAL EMPTY STATE: Only triggers if loading is false AND data explicitly finished empty */
               <tr>
                 <td colSpan={columns.length} className="px-8 py-20 text-center">
                   <p className="font-body uppercase tracking-widest text-[10px] font-black text-secondary/20">
