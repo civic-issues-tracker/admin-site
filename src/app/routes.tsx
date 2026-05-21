@@ -16,8 +16,6 @@ import OrganizationAdminDashboardLayout from '../features/dashboard-organization
 import OrganizationAdminDashboardPage from '../features/dashboard-organization-admin/pages/OrganizationAdminDashboardPage'
 import OrganizationAdminIssuesPage from '../features/dashboard-organization-admin/pages/OrganizationAdminIssuesPage'
 import OrganizationAdminAnalyticsPage from '../features/dashboard-organization-admin/pages/OrganizationAdminAnalyticsPage'
-import OrganizationAdminNotificationsPage from '../features/dashboard-organization-admin/pages/OrganizationAdminNotificationsPage'
-import OrganizationAdminSettingsPage from '../features/dashboard-organization-admin/pages/OrganizationAdminSettingsPage'
 import OrganizationAdminAlertsPage from '../features/dashboard-organization-admin/pages/OrganizationAdminAlertsPage'
 
 const router = createBrowserRouter([
@@ -104,14 +102,6 @@ const router = createBrowserRouter([
       {
         path: 'resolved',
         element: <OrganizationAdminAnalyticsPage />,
-      },
-      {
-        path: 'messages',
-        element: <OrganizationAdminNotificationsPage />,
-      },
-      {
-        path: 'settings',
-        element: <OrganizationAdminSettingsPage />,
       },
       {
         path: 'notifications',

@@ -64,7 +64,8 @@ export const getOrganizationAdminWorkspace = (seedValue?: string | null): Organi
 		if (raw) {
 			return JSON.parse(raw) as OrganizationAdminWorkspace;
 		}
-	} catch {
+	} catch (error) {
+		console.warn('Failed to load organization admin workspace from localStorage', error);
 	}
 	const ws = buildOrganizationAdminWorkspace(seed);
 	localStorage.setItem(key, JSON.stringify(ws));
@@ -74,7 +75,8 @@ export const getOrganizationAdminWorkspace = (seedValue?: string | null): Organi
 export const saveOrganizationAdminWorkspace = (ws: OrganizationAdminWorkspace) => {
 	try {
 		localStorage.setItem(LOCAL_KEY(ws.seed), JSON.stringify(ws));
-	} catch {
+	} catch (error) {
+		console.warn('Failed to save organization admin workspace to localStorage', error);
 	}
 };
 

@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, BarChart3, AlertCircle, 
-  Building2, Users, Monitor, Settings, LogOut, Menu, X 
+  Building2, Users, Settings, LogOut, Menu, X 
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import LogoIcon from '../../assets/icons/logoIcon';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const SidebarAdmin: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin-dashboard', icon: <LayoutDashboard size={20} /> },
@@ -22,9 +22,6 @@ const SidebarAdmin: React.FC = () => {
     { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
-
-  const { logout } = useAuth(); 
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
@@ -44,21 +41,22 @@ const SidebarAdmin: React.FC = () => {
       {/* Mobile Toggle Button */}
       <button 
         onClick={toggleSidebar}
-        className="lg:hidden fixed top-6 left-6 z-[120] p-3 bg-[#5C4033] text-white rounded-xl shadow-lg"
+        className="lg:hidden fixed top-6 left-6 z-120 p-3 bg-[#5C4033] text-white rounded-xl shadow-lg"
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
+      {/* Backdrop for Mobile */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-100 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Sidebar Content */}
       <aside className={`
-        fixed lg:sticky top-0 left-0 z-[110]
+        fixed lg:sticky top-0 left-0 z-110
         w-72 h-screen bg-[#5C4033] text-white flex flex-col py-10 
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -96,7 +94,8 @@ const SidebarAdmin: React.FC = () => {
           ))}
         </nav>
 
-        <div className="px-10 mt-auto pt-6">
+        {/* Logout Action Area */}
+        <div className="px-10 mt-auto pt-6 border-t border-white/10">
           <button 
             className="flex items-center gap-4 py-4 w-full opacity-60 hover:opacity-100 hover:text-red-300 transition-all"
             onClick={handleLogout}

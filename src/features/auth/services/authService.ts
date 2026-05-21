@@ -16,40 +16,8 @@ export const privateApi = axios.create({
   withCredentials: true,
 });
 
-privateApi.interceptors.request.use(
-  (config) => {
-    const accessToken =
-      sessionStorage.getItem('accessToken') ||
-      localStorage.getItem('accessToken') ||
-      sessionStorage.getItem('token') ||
-      localStorage.getItem('token');
-
-    if (accessToken) {
-	  config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-//  Response Interceptor: Catches 401 errors globally
-privateApi.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      console.warn("Session expired or unauthorized. Logging out...");
-      sessionStorage.removeItem('accessToken');
-      localStorage.removeItem('accessToken');
-      sessionStorage.removeItem('token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user'); 
-      window.location.href = '/login'; 
-    }
-    return Promise.reject(error);
-  }
-);
+// Note: Request and Response interceptors are managed by AuthContext
+// to ensure proper state synchronization
 
 interface LoginCredentials {
   email?: string; 

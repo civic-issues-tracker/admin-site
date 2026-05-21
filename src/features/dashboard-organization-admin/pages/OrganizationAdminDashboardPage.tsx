@@ -11,33 +11,79 @@ const priorityTone: Record<string, string> = {
 	Low: 'text-[#2E8D56]',
 };
 
-const statusTone: Record<string, string> = {
-	Submitted: 'bg-[#FFE9EA] text-[#D63945]',
-	'In Progress': 'bg-[#FFF4D8] text-[#9A6F16]',
-	Resolved: 'bg-[#DCF5E4] text-[#20844A]',
-	Rejected: 'bg-[#EDEDED] text-[#6A6A6A]',
+const statusTone: Record<OrganizationAdminTicket['status'], string> = {
+	submitted: 'bg-[#FFE9EA] text-[#D63945]',
+	in_progress: 'bg-[#FFF4D8] text-[#9A6F16]',
+	resolved: 'bg-[#DCF5E4] text-[#20844A]',
+	rejected: 'bg-[#EDEDED] text-[#6A6A6A]',
+	pending_admin: 'bg-[#E9E7F6] text-[#5B54A4]',
+	escalated: 'bg-[#FFE6D6] text-[#B84A1E]',
 };
 
-const weekly = [
-	{ day: 'Mon', heightClass: 'h-12' },
-	{ day: 'Tue', heightClass: 'h-8' },
-	{ day: 'Wed', heightClass: 'h-16' },
-	{ day: 'Thu', heightClass: 'h-10' },
-	{ day: 'Fri', heightClass: 'h-20' },
-	{ day: 'Sat', heightClass: 'h-6' },
-	{ day: 'Sun', heightClass: 'h-2' },
-];
+const statusLabels: Record<OrganizationAdminTicket['status'], string> = {
+	submitted: 'Submitted',
+	in_progress: 'In Progress',
+	resolved: 'Resolved',
+	rejected: 'Rejected',
+	pending_admin: 'Pending Admin',
+	escalated: 'Escalated',
+};
+
+const formatStatusLabel = (status?: OrganizationAdminTicket['status']) => {
+	if (!status) return 'Submitted';
+	return statusLabels[status] ?? 'Submitted';
+};
 
 const OrganizationAdminDashboardPage = () => {
 	const { user, showToast } = useAuth();
 	const navigate = useNavigate();
 	const seed = user?.email ?? user?.id ?? user?.full_name;
 	const [searchQuery, setSearchQuery] = useState('');
-	const { tickets, resolvedTickets, isLoading, error, updateStatus, updateInternalNotes, assignUnit } = useOrganizationAdminIssues(seed);
+	const { tickets, resolvedTickets, isLoading, error, updateStatus, updateInternalNotes, releaseIssue, escalateIssue } = useOrganizationAdminIssues(seed);
 	const [showResolved, setShowResolved] = useState(false);
 
 	// All tickets (active + resolved) for selection lookup
 	const allTickets = useMemo(() => [...tickets, ...resolvedTickets], [tickets, resolvedTickets]);
+	
+	// Dynamic weekly performance based on tickets processed/resolved
+	const weeklyPerformance = useMemo(() => {
+		const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+		const today = new Date();
+		
+		const last7Days = Array.from({ length: 7 }).map((_, i) => {
+			const d = new Date(today);
+			d.setDate(today.getDate() - (6 - i));
+			return {
+				day: days[d.getDay()],
+				dateString: d.toDateString(),
+				count: 0
+			};
+		});
+
+		// Count any ticket updated or created in the last 7 days
+		allTickets.forEach((ticket) => {
+			// fallback to a recent date if none is found to avoid breaking
+			const d = new Date(ticket.resolutionDate || ticket.createdAt || new Date());
+			const ticketDateStr = d.toDateString();
+			const dayData = last7Days.find((day) => day.dateString === ticketDateStr);
+			if (dayData) {
+				dayData.count += 1;
+			}
+		});
+
+		const maxCount = Math.max(...last7Days.map((d) => d.count), 1);
+		
+		return last7Days.map((d) => {
+			// Using inline styles for dynamic height limits instead of tailwind classes
+			// h-24 is 6rem (96px). Let's map count to a max of 80px or 100px.
+			const heightPx = Math.max(8, Math.round((d.count / maxCount) * 80));
+			return {
+				day: d.day,
+				count: d.count,
+				heightCode: heightPx,
+			};
+		});
+	}, [allTickets]);
 
 	const filteredTickets = tickets.filter((t) => {
 		const q = searchQuery.trim().toLowerCase();
@@ -56,38 +102,40 @@ const OrganizationAdminDashboardPage = () => {
 		() => allTickets.find((ticket) => ticket.id === selectedId) ?? allTickets[0],
 		[selectedId, allTickets],
 	);
-	const statusLabel = selected?.status ?? 'Submitted';
+	const statusLabel = formatStatusLabel(selected?.status);
+	const assignedAdminName = selected?.assignedAdminName?.trim() || '';
+	const currentAdminName = (user?.full_name || user?.email || '').trim();
+	const isAssignedToCurrentUser =
+		assignedAdminName.length > 0 && currentAdminName.length > 0 &&
+		assignedAdminName.toLowerCase() === currentAdminName.toLowerCase();
+	const isLockedByOther = assignedAdminName.length > 0 && !isAssignedToCurrentUser;
+
 	const setIssueStatus = async (status: OrganizationAdminTicket['status']) => {
 		if (!selected || selected.status === status) return;
+		if (isLockedByOther) {
+			showToast(`This issue is locked by ${assignedAdminName}.`, 'error');
+			return;
+		}
 		await updateStatus(selected.id, status);
-		showToast(`Status updated to ${status} for ${selected.issueNumber}.`, 'success');
+		showToast(`Status updated to ${formatStatusLabel(status)} for ${selected.issueNumber}.`, 'success');
 	};
 
 	const cycleStatus = async () => {
 		if (!selected) return;
-		const order: OrganizationAdminTicket['status'][] = ['Submitted', 'In Progress', 'Resolved'];
-		const current = selected.status === 'Rejected' ? 'Submitted' : selected.status;
+		const order: OrganizationAdminTicket['status'][] = ['submitted', 'in_progress', 'resolved'];
+		const current =
+			selected.status === 'rejected' || !order.includes(selected.status)
+				? 'submitted'
+				: selected.status;
 		const next = order[(order.indexOf(current) + 1) % order.length];
 		await updateStatus(selected.id, next);
-		showToast(`Status updated to ${next} for ${selected.issueNumber}.`, 'success');
+		showToast(`Status updated to ${formatStatusLabel(next)} for ${selected.issueNumber}.`, 'success');
 	};
 
 	const openDirections = () => {
 		if (!selected) return;
-		navigate('/organization-admin/map');
+		navigate('/organization-admin/dashboard/map');
 		showToast(`Opened the Bole map for ${selected.issueNumber}.`, 'success');
-	};
-
-	const assignCrew = () => {
-		if (!selected) return;
-		const unit = 'Unit 4';
-		assignUnit(selected.id, unit);
-		showToast(`Assigned ${unit} to ${selected.issueNumber}.`, 'success');
-	};
-
-	const requestEquipment = () => {
-		if (!selected) return;
-		showToast(`Equipment request queued for ${selected.issueNumber}.`, 'success');
 	};
 
 	const sendNote = async () => {
@@ -103,8 +151,35 @@ const OrganizationAdminDashboardPage = () => {
 			showToast(`Note saved to ${selected.issueNumber}.`, 'success');
 			setNote('');
 		} catch (err) {
+			console.error('Failed to save note.', err);
 			showToast('Failed to save note.', 'error');
 		}
+	};
+
+	const handleRelease = async () => {
+		if (!selected) return;
+		if (!isAssignedToCurrentUser) {
+			showToast('Only the assigned admin can release this issue.', 'error');
+			return;
+		}
+		const note = globalThis.prompt('Add a release note (optional):') ?? '';
+		await releaseIssue(selected.id, note || undefined);
+		showToast(`Issue ${selected.issueNumber} released.`, 'success');
+	};
+
+	const handleEscalate = async () => {
+		if (!selected) return;
+		if (isLockedByOther) {
+			showToast(`This issue is locked by ${assignedAdminName}.`, 'error');
+			return;
+		}
+		const reason = globalThis.prompt('Why are you escalating this issue?');
+		if (!reason?.trim()) {
+			showToast('Escalation reason is required.', 'error');
+			return;
+		}
+		await escalateIssue(selected.id, reason.trim());
+		showToast(`Issue ${selected.issueNumber} escalated to system admin.`, 'success');
 	};
 
 	if (isLoading && tickets.length === 0) {
@@ -160,11 +235,18 @@ const OrganizationAdminDashboardPage = () => {
 							<h3 className="text-sm font-semibold text-[#4A3628]">My Weekly Performance</h3>
 							<BarChart3 size={16} className="text-[#B19E8B]" />
 						</div>
-						<div className="grid grid-cols-7 items-end gap-2">
-							{weekly.map((item) => (
-								<div key={item.day} className="text-center">
-									<div className={`mx-auto w-3 rounded-sm bg-[#B08E6A] ${item.heightClass}`} />
+						<div className="grid grid-cols-7 items-end gap-2 h-24">
+							{weeklyPerformance.map((item, index) => (
+								<div key={`${item.day}-${index}`} className="text-center group relative">
+									<div 
+										style={{ height: `${item.heightCode}px` }}
+										className="mx-auto w-3 rounded-sm bg-[#B08E6A] transition-all group-hover:bg-[#8B7B69]" 
+									/>
 									<p className="mt-1 text-[10px] text-[#9D8A78]">{item.day}</p>
+									{/* Tooltip for exact count */}
+									<div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#3E2B1F] text-white text-[10px] py-1 px-2 rounded pointer-events-none">
+										{item.count}
+									</div>
 								</div>
 							))}
 						</div>
@@ -190,11 +272,23 @@ const OrganizationAdminDashboardPage = () => {
 									<div className="mb-1 flex items-center justify-between">
 										<p className="text-xs font-bold text-[#7A6655]">{ticket.issueNumber}</p>
 										<span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone[ticket.status]}`}>
-											{ticket.status}
+											{formatStatusLabel(ticket.status)}
 										</span>
 									</div>
 									<h4 className="text-sm font-semibold text-[#362518]">{ticket.title}</h4>
 									<p className="mt-1 text-xs text-[#8A7767]">{ticket.location}</p>
+									<div className="mt-2 flex flex-wrap items-center gap-1 text-[10px]">
+										{ticket.assignedAdminName ? (
+											<span className="rounded-full border border-[#D8C7B4] bg-[#F6EEE4] px-2 py-0.5 font-semibold text-[#6B4C33]">
+												Assigned: {ticket.assignedAdminName}
+										</span>
+										) : null}
+										{ticket.reopenReason ? (
+											<span className="rounded-full border border-[#E6C1AE] bg-[#FFE8DD] px-2 py-0.5 font-semibold text-[#9C3F1C]">
+												Reopened
+											</span>
+										) : null}
+									</div>
 									<div className="mt-2 flex items-center justify-between border-t border-[#EFE5DB] pt-2 text-[11px]">
 										<p className={priorityTone[ticket.priority]}>
 											<TriangleAlert size={12} className="mr-1 inline" />
@@ -233,11 +327,23 @@ const OrganizationAdminDashboardPage = () => {
 												<div className="mb-1 flex items-center justify-between">
 													<p className="text-xs font-bold text-[#7A6655]">{ticket.issueNumber}</p>
 													<span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone[ticket.status]}`}>
-														{ticket.status}
+														{formatStatusLabel(ticket.status)}
 													</span>
 												</div>
 												<h4 className="text-sm font-semibold text-[#362518]">{ticket.title}</h4>
 												<p className="mt-1 text-xs text-[#8A7767]">{ticket.location}</p>
+												<div className="mt-2 flex flex-wrap items-center gap-1 text-[10px]">
+													{ticket.assignedAdminName ? (
+														<span className="rounded-full border border-[#D8C7B4] bg-[#F6EEE4] px-2 py-0.5 font-semibold text-[#6B4C33]">
+															Assigned: {ticket.assignedAdminName}
+													</span>
+													) : null}
+													{ticket.reopenReason ? (
+														<span className="rounded-full border border-[#E6C1AE] bg-[#FFE8DD] px-2 py-0.5 font-semibold text-[#9C3F1C]">
+															Reopened
+														</span>
+													) : null}
+												</div>
 											</button>
 										))}
 									</div>
@@ -254,7 +360,7 @@ const OrganizationAdminDashboardPage = () => {
 							<span className="rounded-full bg-[#E9E7E2] px-2 py-0.5 text-[11px] font-semibold text-[#617083]">{selected?.category ?? 'Uncategorized'}</span>
 						</div>
 						<div className="flex items-center gap-2 text-sm text-[#8E7E6D]">
-							<button onClick={cycleStatus} className="rounded-full border border-[#E0D3C5] px-2 py-1">
+							<button onClick={cycleStatus} className="rounded-full border border-[#E0D3C5] px-2 py-1" disabled={isLockedByOther}>
 								Status: {statusLabel}
 							</button>
 							<MoreVertical size={16} />
@@ -262,21 +368,53 @@ const OrganizationAdminDashboardPage = () => {
 					</div>
 
 					<div className="mb-3 flex flex-wrap gap-2">
-						{(['Submitted', 'In Progress', 'Resolved', 'Rejected'] as const).map((status) => (
+						{(['submitted', 'in_progress', 'resolved', 'rejected'] as const).map((status) => (
 							<button
 								type="button"
 								key={status}
 								onClick={() => setIssueStatus(status)}
-								disabled={selected.status === status}
+								disabled={selected.status === status || isLockedByOther}
 								className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
 									selected.status === status
 										? 'border-[#C9A78A] bg-[#EFE4D6] text-[#6B4C33]'
 										: 'border-[#E0D3C5] bg-white text-[#6D5A48] hover:border-[#C9A78A]'
 								}`}
 							>
-								Set {status}
+								Set {formatStatusLabel(status)}
 							</button>
 						))}
+					</div>
+
+					<div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+						{assignedAdminName && (
+							<span className={`rounded-full border px-3 py-1 ${isLockedByOther ? 'border-[#E6C1AE] bg-[#FFE8DD] text-[#9C3F1C]' : 'border-[#D8C7B4] bg-[#F6EEE4] text-[#6B4C33]'}`}>
+								Assigned: {assignedAdminName}
+							</span>
+						)}
+						{selected?.reopenReason ? (
+							<span className="rounded-full border border-[#E6C1AE] bg-[#FFE8DD] px-3 py-1 font-semibold text-[#9C3F1C]">
+								Reopened
+							</span>
+						) : null}
+						<button
+							type="button"
+							onClick={handleRelease}
+							disabled={!isAssignedToCurrentUser}
+							className="rounded-full border border-[#E0D3C5] bg-white px-3 py-1 font-semibold text-[#6D5A48] disabled:cursor-not-allowed disabled:opacity-40"
+						>
+							Release
+						</button>
+						<button
+							type="button"
+							onClick={handleEscalate}
+							disabled={isLockedByOther || selected.status === 'escalated'}
+							className="rounded-full border border-[#E6C1AE] bg-[#FFE8DD] px-3 py-1 font-semibold text-[#9C3F1C] disabled:cursor-not-allowed disabled:opacity-40"
+						>
+							Escalate
+						</button>
+						{isLockedByOther && (
+							<span className="text-[#9C3F1C]">Locked by another admin.</span>
+						)}
 					</div>
 
 					<h3 className="mb-2 text-[62px] font-extrabold leading-[0.92] text-[#2E2016]">{selected?.title ?? 'No issue selected'}</h3>
@@ -309,14 +447,6 @@ const OrganizationAdminDashboardPage = () => {
 							<p className="text-sm font-semibold text-[#3E2D20]">{selected.reporter ?? 'Unknown reporter'}</p>
 							<p className="text-xs text-[#8E7B6A]">{selected.reporterPhone ?? 'No contact details available'}</p>
 						</div>
-
-						<div className="rounded-xl border border-[#E2D6C9] bg-[#F8F3ED] p-3">
-							<h4 className="mb-1 text-sm font-semibold text-[#4B392B]">Dispatch Actions</h4>
-							<div className="flex gap-2 text-xs">
-								<button onClick={assignCrew} className="rounded-full border border-[#DCCDBE] px-3 py-1">Assign Crew</button>
-								<button onClick={requestEquipment} className="rounded-full border border-[#DCCDBE] px-3 py-1">Request Equipment</button>
-							</div>
-						</div>
 					</div>
 
 					<div className="mt-auto flex items-center gap-2 rounded-xl border border-[#E0D4C7] bg-[#F8F3ED] p-2">
@@ -343,6 +473,13 @@ const OrganizationAdminDashboardPage = () => {
 						</div>
 					)}
 				</div>
+
+				{selected?.reopenReason ? (
+					<div className="mb-3 rounded-xl border border-[#E6C1AE] bg-[#FFF4EC] p-3 text-xs text-[#7C3A1D]">
+						<strong className="block text-[11px] uppercase tracking-[0.2em]">Reopen Reason</strong>
+						<span className="mt-2 block">{selected.reopenReason}</span>
+					</div>
+				) : null}
 			</div>
 		</section>
 	);

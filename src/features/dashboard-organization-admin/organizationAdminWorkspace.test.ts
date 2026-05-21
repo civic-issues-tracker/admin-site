@@ -1,12 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-if (typeof (globalThis as any).localStorage === 'undefined') {
-  const _store = new Map<string, string>();
-  (globalThis as any).localStorage = {
-    getItem: (k: string) => (_store.has(k) ? _store.get(k) as string : null),
-    setItem: (k: string, v: string) => _store.set(k, String(v)),
-    removeItem: (k: string) => _store.delete(k),
-  };
+const storageHost = globalThis as typeof globalThis & { localStorage?: Storage };
+
+if (typeof storageHost.localStorage === 'undefined') {
+  const store = new Map<string, string>();
+  storageHost.localStorage = {
+    getItem: (key: string) => (store.has(key) ? store.get(key) ?? null : null),
+    setItem: (key: string, value: string) => store.set(key, String(value)),
+    removeItem: (key: string) => store.delete(key),
+    clear: () => store.clear(),
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+  } as Storage;
 }
 import {
   buildOrganizationAdminWorkspace,
@@ -36,12 +43,12 @@ describe('organizationAdminWorkspace helpers', () => {
     const ws = getOrganizationAdminWorkspace(seed);
     const ticket = ws.organizationAdminTickets[0];
     expect(ticket).toBeTruthy();
-    const updated = updateTicketStatus(seed, ticket.id, 'In Progress');
+    const updated = updateTicketStatus(seed, ticket.id, 'in_progress');
     expect(updated).not.toBeNull();
-    expect(updated?.status).toBe('In Progress');
+    expect(updated?.status).toBe('in_progress');
     const ws2 = getOrganizationAdminWorkspace(seed);
     const t2 = ws2.organizationAdminTickets.find((t) => t.id === ticket.id);
-    expect(t2?.status).toBe('In Progress');
+    expect(t2?.status).toBe('in_progress');
   });
 
   it('assigns a ticket to a unit', () => {
@@ -49,10 +56,10 @@ describe('organizationAdminWorkspace helpers', () => {
     const ticket = ws.organizationAdminTickets[0];
     const updated = assignTicket(seed, ticket.id, 'Unit 99');
     expect(updated).not.toBeNull();
-    expect((updated as any).assignedUnit).toBe('Unit 99');
+    expect(updated?.assignedUnit).toBe('Unit 99');
     const ws2 = getOrganizationAdminWorkspace(seed);
-    const t2 = ws2.organizationAdminTickets.find((t) => t.id === ticket.id) as any;
-    expect(t2.assignedUnit).toBe('Unit 99');
+    const t2 = ws2.organizationAdminTickets.find((item) => item.id === ticket.id);
+    expect(t2?.assignedUnit).toBe('Unit 99');
   });
 
   it('adds a message to a thread', () => {

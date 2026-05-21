@@ -1,7 +1,7 @@
 import React, { createContext, useState, useCallback, useLayoutEffect, useRef } from 'react';
 import { privateApi } from '../features/auth/services/authService';
 import Toast, { type ToastType } from '../components/ui/Toast'; 
-import { type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
+import { AxiosError, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
 
 export interface User {
   id: string;
@@ -31,12 +31,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = sessionStorage.getItem('user');
+    const savedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
   const [accessToken, setAccessToken] = useState<string | null>(() => {
-    return sessionStorage.getItem('accessToken');
+    return sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -54,12 +54,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAccessToken(data.access);
     setUser(data.user);
     
+    // Persist to both sessionStorage and localStorage
     sessionStorage.setItem('accessToken', data.access);
     sessionStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('accessToken', data.access);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
     if (data.refresh) {
       sessionStorage.setItem('refreshToken', data.refresh);
+      localStorage.setItem('refreshToken', data.refresh);
     } else {
       sessionStorage.removeItem('refreshToken');
+      localStorage.removeItem('refreshToken');
     }
     
     setIsLoading(false);
@@ -83,27 +89,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await privateApi.post('/auth/logout/');
     }
   } catch  {
-    // This catches the 400 error so the app doesn't crash
     console.warn("Server logout request failed (expected if token expired)");
   } finally {
+    // Clear all auth state
     setAccessToken(null);
     setUser(null);
     
+    // Clear from both storage locations
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('user');
-    localStorage.removeItem('refreshToken'); 
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     
     isLoggingOut.current = false;
   }
-}, [showToast]);
+}, []);
 
   // Interceptors for API logic
   useLayoutEffect(() => {
     const requestIntercept = privateApi.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        if (!config.headers['Authorization'] && accessToken) {
-          config.headers['Authorization'] = `Bearer ${accessToken}`;
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+        if (token && !config.headers['Authorization']) {
+          config.headers['Authorization'] = `Bearer ${token}`;
         }
         return config;
       },
@@ -112,16 +122,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const responseIntercept = privateApi.interceptors.response.use(
       (response: AxiosResponse) => response,
-      async (error: any) => {
-        if (error.response?.status === 429) {
-          showToast("Security: Too many requests. Please slow down.", "error");
+      async (error) => {
+        const axiosError = error as AxiosError;
+
+        if (axiosError.response?.status === 429) {
+          console.warn("Security: Too many requests. Please slow down.");
         }
 
         // If we get a 401 and we're NOT already logging out, trigger logout
-        if (error.response?.status === 401 && !isLoggingOut.current) {
-          logout();
+        if (axiosError.response?.status === 401 && !isLoggingOut.current) {
+          await logout();
         }
-        
+
         return Promise.reject(error);
       }
     );
@@ -130,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       privateApi.interceptors.request.eject(requestIntercept);
       privateApi.interceptors.response.eject(responseIntercept);
     };
-  }, [accessToken, logout, showToast]); 
+  }, [logout]); 
 
   return (
     <AuthContext.Provider value={{ 

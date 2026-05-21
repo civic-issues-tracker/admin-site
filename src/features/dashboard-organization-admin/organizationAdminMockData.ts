@@ -1,5 +1,11 @@
 export type IssuePriority = 'High' | 'Medium' | 'Low';
-export type IssueStatus = 'Submitted' | 'In Progress' | 'Resolved' | 'Rejected';
+export type IssueStatus =
+  | 'submitted'
+  | 'in_progress'
+  | 'resolved'
+  | 'rejected'
+  | 'pending_admin'
+  | 'escalated';
 
 export interface OrganizationAdminIssue {
   id: string;
@@ -10,6 +16,9 @@ export interface OrganizationAdminIssue {
   resident_name?: string;
   priority: IssuePriority;
   status: IssueStatus;
+  assigned_to_org_admin?: string | null;
+  assigned_admin_name?: string | null;
+  reopen_reason?: string | null;
   location_address: string;
   location_lat?: number | null;
   location_long?: number | null;
@@ -26,6 +35,8 @@ export interface OrganizationAdminTicket {
   location: string;
   priority: IssuePriority;
   status: IssueStatus;
+  assignedAdminName?: string;
+  reopenReason?: string;
   assignedUnit?: string;
   summary?: string;
   timeAgo?: string;
@@ -74,7 +85,7 @@ export const organizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Roads & Infrastructure',
     resident_name: 'Sarah Jenkins',
     priority: 'High',
-    status: 'Submitted',
+    status: 'submitted',
     location_address: '1400 North Ave, District 4',
     created_at: '2024-10-18T10:30:00Z',
   },
@@ -85,7 +96,7 @@ export const organizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Vandalism',
     resident_name: 'Marcus Reed',
     priority: 'Medium',
-    status: 'In Progress',
+    status: 'in_progress',
     location_address: 'Centennial Park, South Entrance',
     created_at: '2024-10-18T07:10:00Z',
   },
@@ -96,7 +107,7 @@ export const organizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Lighting',
     resident_name: 'Paula Brown',
     priority: 'Medium',
-    status: 'Submitted',
+    status: 'submitted',
     location_address: 'Corner of 5th St and Elm St',
     created_at: '2024-10-17T09:05:00Z',
   },
@@ -107,7 +118,7 @@ export const organizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Sanitation',
     resident_name: 'Public Works Crew 3',
     priority: 'Low',
-    status: 'Resolved',
+    status: 'resolved',
     location_address: 'Alley behind 890 West Blvd',
     created_at: '2024-10-15T15:40:00Z',
   },
@@ -121,7 +132,7 @@ export const resolvedOrganizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Roads & Infrastructure',
     resident_name: 'Dispatch Center',
     priority: 'High',
-    status: 'Resolved',
+    status: 'resolved',
     location_address: 'Main St',
     created_at: '2024-10-15T08:10:00Z',
   },
@@ -132,7 +143,7 @@ export const resolvedOrganizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Vandalism',
     resident_name: 'City Clean-Up',
     priority: 'Medium',
-    status: 'Resolved',
+    status: 'resolved',
     location_address: 'Central Park',
     created_at: '2024-10-14T11:45:00Z',
   },
@@ -143,7 +154,7 @@ export const resolvedOrganizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Lighting',
     resident_name: 'Ops Supervisor',
     priority: 'Medium',
-    status: 'Resolved',
+    status: 'resolved',
     location_address: '5th & Elm',
     created_at: '2024-10-12T17:25:00Z',
   },
@@ -154,7 +165,7 @@ export const resolvedOrganizationAdminIssues: OrganizationAdminIssue[] = [
     category_name: 'Sanitation',
     resident_name: 'Cleanup Team',
     priority: 'Low',
-    status: 'Resolved',
+    status: 'resolved',
     location_address: 'West Blvd Alley',
     created_at: '2024-10-10T10:00:00Z',
   },
@@ -179,6 +190,8 @@ export const toOrganizationAdminTicket = (issue: OrganizationAdminIssue): Organi
   location: issue.location_address,
   priority: issue.priority,
   status: issue.status,
+  assignedAdminName: issue.assigned_admin_name ?? undefined,
+  reopenReason: issue.reopen_reason ?? undefined,
   summary: issue.description,
   reporter: issue.resident_name,
   category: issue.category_name,

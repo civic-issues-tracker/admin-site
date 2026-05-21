@@ -35,9 +35,13 @@ const OrganizationAdminNotificationsPage = () => {
 	}, [threadSearch, threadTypeFilter, workspace.chatThreads]);
 
 	useEffect(() => {
-		if (!filteredThreads.some((thread) => thread.id === activeThreadId)) {
-			setActiveThreadId(filteredThreads[0]?.id ?? workspace.chatThreads[0]?.id ?? '');
-		}
+		if (filteredThreads.some((thread) => thread.id === activeThreadId)) return;
+		const nextThreadId = filteredThreads[0]?.id ?? workspace.chatThreads[0]?.id ?? '';
+		if (!nextThreadId || nextThreadId === activeThreadId) return;
+		const timer = window.setTimeout(() => {
+			setActiveThreadId(nextThreadId);
+		}, 0);
+		return () => window.clearTimeout(timer);
 	}, [activeThreadId, filteredThreads, workspace.chatThreads]);
 
 	const activeThread = useMemo(() => {
