@@ -116,8 +116,6 @@ const handleFlagReport = async (issueId: string, currentNotes: string | null, se
   }
 };
 
-
-
 // PERMANENT DELETE HANDLER
 const handlePermanentDelete = async (issueId: string, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
   // const confirmDelete = window.confirm("Are you absolutely sure you want to permanently delete this issue? This cannot be undone.");
