@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   IoSearchOutline, 
   IoFilterOutline, 
@@ -15,7 +15,7 @@ import {
 import Table from './../../../components/ui/Table';
 import UserDetailDrawer from './UserDetailDrawer';
 import toast from 'react-hot-toast';
-import { privateApi } from '../../auth/services/authService'; // Un-commented and hooked up
+import { privateApi } from '../../auth/services/authService'; 
 import ThemeLoader from '../../../components/ui/ThemeLoader';
 
 // Typings mapped exactly to your backend JSON scheme response
@@ -48,13 +48,26 @@ const AdminUsersPage = () => {
   const [selectedUser, setSelectedUser] = useState<BackendUser | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // --- FETCH USERS FROM BACKEND ---
-  const fetchUsers = async () => {
+  // --- INTEGRATED DYNAMIC BACKEND QUERY FETCH ---
+  const fetchUsers = useCallback(async (searchVal: string, roleVal: string) => {
     setIsLoading(true);
     try {
-      // Base endpoint from your USER_MANAGEMENT_API.md
-      const response = await privateApi.get('/auth/admin/users/');
+      // Build parameters natively using standard query variables from documentation
+      const queryParams = new URLSearchParams();
+      
+      if (searchVal.trim()) {
+        queryParams.append('search', searchVal.trim());
+      }
+      
+      // Convert UI filter label selections cleanly to backend database role strings
+      if (roleVal === "User") queryParams.append('role', 'resident');
+      else if (roleVal === "Organization") queryParams.append('role', 'organization_admin');
+      else if (roleVal === "Admin") queryParams.append('role', 'system_admin');
+
+      const url = `/auth/admin/users/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const response = await privateApi.get(url);
       const freshData = response.data.results || response.data;
+      
       setUsers(Array.isArray(freshData) ? freshData : []);
     } catch (error) {
       console.error(error);
@@ -62,30 +75,16 @@ const AdminUsersPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchUsers();
   }, []);
 
-  // --- FILTER & SEARCH LOGIC ---
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const nameMatch = user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
-      const emailMatch = user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
-      const phoneMatch = user.phone?.includes(searchTerm) || false;
-      
-      const matchesSearch = nameMatch || emailMatch || phoneMatch;
+  // --- DEBOUNCED SEARCH EFFECT AND IMMEDIATE DROPDOWN FILTERING ---
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchUsers(searchTerm, roleFilter);
+    }, 400); // 400ms delay to protect the backend database from layout flooding
 
-      // Map matching roles from frontend selector values to backend role strings
-      let matchesRole = true;
-      if (roleFilter === "User") matchesRole = user.role_name === "resident";
-      else if (roleFilter === "Organization") matchesRole = user.role_name === "organization_admin";
-      else if (roleFilter === "Admin") matchesRole = user.role_name === "system_admin";
-      
-      return matchesSearch && matchesRole;
-    });
-  }, [users, searchTerm, roleFilter]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, roleFilter, fetchUsers]);
 
   const handleViewProfile = (user: BackendUser) => {
     setSelectedUser(user);
@@ -105,10 +104,10 @@ const AdminUsersPage = () => {
         await privateApi.post(`/auth/admin/users/${id}/unblock/`, {});
         toast.success("User account reactivated successfully.");
       }
-      // Re-fetch users to keep state accurate with server
-      fetchUsers();
-    } catch (error: any) {
-      const apiError = error.response?.data?.error || "Failed to update security status.";
+      // Re-fetch parameters immediately with ongoing values
+      fetchUsers(searchTerm, roleFilter);
+    } catch (error: unknown) {
+      const apiError = (error as { response?: { data?: { error?: string } } }).response?.data?.error || "Failed to update security status.";
       toast.error(apiError);
     } finally {
       setActiveMenu(null);
@@ -257,7 +256,7 @@ const AdminUsersPage = () => {
         <p className="font-body text-[10px] text-secondary/40 uppercase tracking-[0.4em] mt-2 font-bold">Admin Control Center</p>
       </header>
 
-      {/* Search & Filters */}
+      {/* Search & Filters Controls */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
         <div className="relative flex-1">
           <IoSearchOutline className="absolute left-5 top-1/2 -translate-y-1/2 text-secondary/40" size={20} />
@@ -294,12 +293,12 @@ const AdminUsersPage = () => {
       ) : (
         <Table 
           columns={columns} 
-          data={filteredUsers} 
+          data={users} // Directly passing pristine server data response here
           onRowClick={(user) => handleViewProfile(user)}
         />
       )}
 
-      {/* Sliding Premium Side Drawer */}
+      {/* Sliding Side Drawer */}
       <UserDetailDrawer 
         user={selectedUser} 
         isOpen={isDrawerOpen} 

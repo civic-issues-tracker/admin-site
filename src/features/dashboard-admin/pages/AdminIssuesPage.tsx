@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/preserve-manual-memoization */
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   IoSearchOutline, 
@@ -19,7 +22,7 @@ const AdminIssuesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  // const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchIssues = async () => {
@@ -119,20 +122,20 @@ const handleFlagReport = async (issueId: string, currentNotes: string | null, se
 
 
 // PERMANENT DELETE HANDLER
-const handlePermanentDelete = async (issueId: string, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
-  // const confirmDelete = window.confirm("Are you absolutely sure you want to permanently delete this issue? This cannot be undone.");
-  // if (!confirmDelete) return;
+// const handlePermanentDelete = async (issueId: string, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
+//   // const confirmDelete = window.confirm("Are you absolutely sure you want to permanently delete this issue? This cannot be undone.");
+//   // if (!confirmDelete) return;
 
-  try {
-    await privateApi.delete(`/issues/${issueId}/`);
+//   try {
+//     await privateApi.delete(`/issues/${issueId}/`);
     
-    toast.success("Issue deleted successfully.");
-    await refreshIssuesFeed(setIssues); 
-  } catch (error) {
-    console.error("Error deleting issue:", error);
-    toast.error("Failed to delete the issue.");
-  }
-};
+//     toast.success("Issue deleted successfully.");
+//     await refreshIssuesFeed(setIssues); 
+//   } catch (error) {
+//     console.error("Error deleting issue:", error);
+//     toast.error("Failed to delete the issue.");
+//   }
+// };
 
   //  COLUMN DEFINITIONS 
   const columns = [
@@ -246,105 +249,22 @@ const handlePermanentDelete = async (issueId: string, setIssues: React.Dispatch<
   header: 'Actions', 
   key: 'actions',
   render: (issue: any) => {
-    const isMenuOpen = openMenuId === issue.id;
 
     return (
-      <div className="relative inline-block text-left">
-        <button
-          onClick={(e) => {
-            e.stopPropagation(); 
-            setOpenMenuId(isMenuOpen ? null : issue.id);
-          }}
-          className="p-2 hover:bg-secondary/5 text-secondary/40 hover:text-secondary rounded-xl transition-all"
-        >
-          <svg 
-            className="w-4 h-4" 
-            fill="currentColor" 
-            viewBox="0 0 16 16"
-          >
-            <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-          </svg>
-        </button>
-
-        {/* Floating Menu Dropdown */}
-        {isMenuOpen && (
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="absolute right-0 mt-2 w-48 bg-white border border-secondary/10 rounded-2xl shadow-xl z-50 py-2 animate-in fade-in slide-in-from-top-1 duration-150"
-          >
-            {/* 1. Flag Action */}
-            <button
-              onClick={() => {
-                setOpenMenuId(null);
-                handleFlagReport(issue.id, issue.internal_notes, setIssues);
-                toast.success(`Issue ${issue.issue_number} flagged successfully.`);
-              }}
-              className="w-full text-left px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-500/5 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-              </svg>
-              Flag Report
-            </button>
-
-            {/* 2. Internal Note Action */}
-            
-
-            <div className="border-t border-secondary/5 my-1" />
-
-            {/* 3. Permanent Delete Action */}
-            <button
-              onClick={() => {
-                setOpenMenuId(null);
-
-                toast.custom((t) => (
-                  <div
-                    className={`${
-                      t.visible ? "animate-enter" : "animate-leave"
-                    } max-w-md w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col p-5 border border-neutral-100 ring-1 ring-black ring-opacity-5`}
-                  >
-                    <div className="flex flex-col gap-1.5 text-center sm:text-left">
-                      <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2 justify-center sm:justify-start">
-                        <span className="text-lg">⚠️</span> Permanent Action Required
-                      </h3>
-                      <p className="text-xs text-neutral-500 font-medium leading-relaxed">
-                        Do you want to permanently delete issue <strong className="text-neutral-800">{issue.issue_number}</strong>? This data records purge cannot be undone.
-                      </p>
-                    </div>
-
-                    {/* Action Buttons Box */}
-                    <div className="flex gap-2.5 justify-end mt-4 pt-3 border-t border-neutral-50">
-                      <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="px-4 py-2 text-xs font-bold bg-neutral-100 hover:bg-neutral-200 active:scale-95 text-neutral-600 rounded-xl transition-all cursor-pointer"
-                      >
-                        No, Cancel
-                      </button>
-                      <button
-                        onClick={() => {
-                          toast.dismiss(t.id);
-                          handlePermanentDelete(issue.id, setIssues);
-                        }}
-                        className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl transition-all shadow-sm shadow-red-500/20 cursor-pointer"
-                      >
-                        Yes, Delete Permanently
-                      </button>
-                    </div>
-                  </div>
-                ), {
-                  position: "top-center",         
-                });
-              }}
-              className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-500/5 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Permanent Delete
-            </button>
-          </div>
-        )}
-      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); 
+          handleFlagReport(issue.id, issue.internal_notes, setIssues);
+          toast.success(`Issue ${issue.issue_number} flagged successfully.`);
+        }}
+        className="p-2 hover:bg-amber-500/5 text-amber-600 rounded-xl transition-all flex items-center gap-2 font-bold text-xs"
+        title="Flag Report"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+        </svg>
+        <span>Flag Report</span>
+      </button>
     );
   }
 }

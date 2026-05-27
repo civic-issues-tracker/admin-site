@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, BarChart3, AlertCircle, 
-  Building2, Users, Settings, LogOut, Menu, X 
+  Building2, Users, LogOut, Menu, X 
 } from 'lucide-react';
 import LogoIcon from '../../assets/icons/logoIcon';
 import { useAuth } from '../../hooks/useAuth';
@@ -20,7 +20,7 @@ const SidebarAdmin: React.FC = () => {
     { name: 'Organizations', path: '/admin/organizations', icon: <Building2 size={20} /> },
     { name: 'Categories', path: '/admin/categories', icon: <BarChart3 size={20} /> },
     { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
-    { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
+    // { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
 
   const handleLogout = async () => {

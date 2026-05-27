@@ -50,22 +50,24 @@ export const AdminStatsOverview = {
         const total = issues.length;
 
         // Helper function to extract status text cleanly regardless of backend format
-        const getStatusText = (item: any): string => {
-            const statusField = item.status || item.issue_status || item.current_status;
-            
-            if (!statusField) return 'pending'; // Fallback default
-            
-            // If backend returned it as a nested object: status: { label: 'Resolved' } or status: { value: 'resolved' }
+        const getStatusText = (item: unknown): string => {
+            const obj = (item as Record<string, unknown> | null) || {};
+            const statusField = obj.status ?? obj.issue_status ?? obj.current_status;
+
+            if (statusField == null) return 'pending';
+
             if (typeof statusField === 'object') {
-                return (statusField.value || statusField.label || statusField.name || '').toLowerCase();
+                const s = statusField as Record<string, unknown>;
+                const val = s.value ?? s.label ?? s.name ?? '';
+                return String(val).toLowerCase();
             }
-            
+
             return String(statusField).toLowerCase();
         };
 
         // Calculate counts using the safe extractor
-        const solved = issues.filter((i: any) => getStatusText(i) === 'resolved').length;
-        const rejected = issues.filter((i: any) => getStatusText(i) === 'rejected').length;
+        const solved = issues.filter((i: unknown) => getStatusText(i) === 'resolved').length;
+        const rejected = issues.filter((i: unknown) => getStatusText(i) === 'rejected').length;
         
         // Active is explicitly whatever is left over
         const active = total - (solved + rejected);

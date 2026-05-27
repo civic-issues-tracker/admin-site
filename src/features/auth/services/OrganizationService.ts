@@ -58,5 +58,19 @@ export const organizationApi = {
       organization_id: organizationId
     });
     return response.data;
+  },
+  createAdmin: async (email: string, organizationId: string) => {
+    const response = await privateApi.post('/auth/admin/create-org-admin/', {
+      email,
+      organization_id: organizationId
+    });
+    return response.data;
+  },
+
+  // Complete organization admin registration using token/credentials
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  completeAdminRegistration: async (registrationData: Record<string, any>) => {
+    const response = await privateApi.post('/auth/complete-registration/', registrationData);
+    return response.data;
   }
 };

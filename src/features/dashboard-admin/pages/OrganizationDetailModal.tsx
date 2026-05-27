@@ -1,5 +1,9 @@
-import React, {  useState } from 'react';
-import { IoMailOutline, IoCallOutline, IoLocationOutline, IoCloseOutline, IoPeopleOutline } from "react-icons/io5";
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect } from 'react';
+import { IoMailOutline, IoCallOutline, IoLocationOutline, IoCloseOutline, IoPeopleOutline, IoPersonAddOutline, IoLayersOutline, IoPricetagOutline } from "react-icons/io5";
+import { organizationApi } from '../../auth/services/OrganizationService';
+import { toast } from 'react-hot-toast';
 
 interface AdminProfile {
   id: string;
@@ -11,45 +15,99 @@ interface AdminProfile {
   phone_number?: string;
   profile_picture?: string;
   is_active?: boolean;
+  status?: 'Pending' | 'Active' | 'Blocked';
 }
 
-interface Organization {
-  id: string;
-  name: string;
-  code?: string;
-  contact_email?: string;
-  contact_phone?: string; 
-  address?: string;
-  logo?: string;
-  admins?: AdminProfile[]; 
-  created_at?: string;
-}
+// interface Organization {
+//   id: string;
+//   name: string;
+//   code?: string;
+//   contact_email?: string;
+//   contact_phone?: string; 
+//   address?: string;
+//   logo?: string;
+//   admins?: AdminProfile[]; 
+//   created_at?: string;
+//   category?: { id: string; name: string } | null;
+//   subcategories?: Array<{ id: string; name: string }> | null;
+// }
 
 interface OrganizationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  organization: Organization | null;
+  organization: any | null;
+  setOrganizationsList?: React.Dispatch<React.SetStateAction<any[]>>; // Accept any array configuration smoothly
 }
 
 export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = ({
   isOpen,
   onClose,
   organization,
+  setOrganizationsList,
 }) => {
-  // 1. Conditional guard check placed at the absolute top of the component to completely prevent hook lifecycle render mismatches
-  if (!isOpen || !organization) return null;
-
-  // 2. State and local variable configurations initialized safely beneath the guard check
   const [fetchedAdmins, setFetchedAdmins] = useState<AdminProfile[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isAddingAdmin, setIsAddingAdmin] = useState<boolean>(false);
+  const [newAdminEmail, setNewAdminEmail] = useState<string>('');
 
   const backendBaseUrl = import.meta.env.VITE_BASE_URL || ''; 
 
+  useEffect(() => {
+    if (isOpen && organization) {
+      setFetchedAdmins(organization.admins || []);
+      console.log("OrganizationDetailModal opened for org:", organization);
+    }
+  }, [isOpen, organization]);
 
+  // Guard clause handled safely after all state hooks
+  if (!isOpen || !organization) return null;
+
+  const handleAddAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminEmail.trim() || !organization?.id) return;
+    
+    setIsAddingAdmin(true);
+    try {
+      await organizationApi.createAdmin(newAdminEmail, organization.id);
+      toast.success(`Invitation email sent to ${newAdminEmail}!`);
+
+      const pendingAdmin: AdminProfile = {
+        id: `pending-${Date.now()}`,
+        email: newAdminEmail,
+        full_name: "Pending Activation",
+        status: "Pending",
+        is_active: false
+      };
+
+      setFetchedAdmins((prev) => [...prev, pendingAdmin]);
+
+      // Update the parent component's master state array in memory safely
+      if (setOrganizationsList) {
+        setOrganizationsList((prevOrgs) => 
+          prevOrgs.map((org) => 
+            org.id === organization.id 
+              ? { ...org, admins: [...(org.admins || []), pendingAdmin] }
+              : org
+          )
+        );
+      }
+
+      setNewAdminEmail('');
+    } catch (error) {
+      toast.error(`Failed to send admin invitation. ${error} Please try again.`);
+      console.error("Error inviting admin:", error);
+    } finally {
+      setIsAddingAdmin(false);
+    }
+  };
+  console.log("Rendering OrganizationDetailModal with organization:", organization); 
 
   const logoUrl = organization.logo
     ? (organization.logo.startsWith('http') ? organization.logo : `${backendBaseUrl}${organization.logo.startsWith('/') ? '' : '/'}${organization.logo}`)
     : 'https://placehold.co/100?text=Org';
+
+  // SAFELY IDENTIFY LINKED CLASSIFICATIONS
+  const linkedCategoryName = organization.category?.name || organization.category_name;
+  const targetSubcategories = organization.subcategories || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fadeIn">
@@ -67,7 +125,7 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
               onClick={onClose}
               className="md:hidden p-2 rounded-xl bg-white border border-neutral-200 text-neutral-500 font-medium text-xs shadow-sm flex items-center gap-1"
             >
-              <IoCloseOutline size={16} /> Close
+              Close
             </button>
           </div>
 
@@ -111,10 +169,41 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
                 </p>
               </div>
             </div>
+
+            {/* DYNAMIC CLASSIFICATION RENDER BLOCK */}
+            <div className="flex gap-3 items-start pt-2 border-t border-dashed border-neutral-200/80">
+              <IoLayersOutline className="text-neutral-400 mt-0.5" size={16} />
+              <div className="w-full">
+                <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Classification Structure</h4>
+                
+                {linkedCategoryName ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-extrabold text-neutral-800 uppercase tracking-wide flex items-center gap-1.5 bg-neutral-200/40 px-2.5 py-1.5 rounded-xl border border-neutral-200/20">
+                      {linkedCategoryName}
+                    </p>
+                    
+                    {targetSubcategories.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {targetSubcategories.map((sub: any) => (
+                          <span 
+                            key={sub.id || sub.name} 
+                            className="inline-flex items-center gap-1 bg-white border border-neutral-200 text-neutral-600 font-bold text-[9px] px-2 py-0.5 rounded-md uppercase tracking-tight shadow-2xs"
+                          >
+                            <IoPricetagOutline size={8} className="text-neutral-400" /> {sub.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs italic text-neutral-400">No primary issue category mapped to this organization profile.</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT PANEL: Fetched Staff Admins List */}
+        {/* RIGHT PANEL: Staff Admins List */}
         <div className="w-full md:w-7/12 p-6 sm:p-8 overflow-y-auto flex flex-col justify-between">
           <div>
             <div className="hidden md:flex items-center justify-between mb-5">
@@ -129,19 +218,9 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
               </button>
             </div>
 
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-3">
-                
-                <div className="w-8 h-8 border-4 border-neutral-200 border-t-neutral-800 rounded-full animate-spin" />
-                <p className="text-xs text-neutral-400 font-medium uppercase tracking-wider">Syncing Admin Records...</p>
-              </div>
-            ) : fetchedAdmins && fetchedAdmins.length > 0 ? (
-              
+            {fetchedAdmins.length > 0 ? (
               <div className="space-y-3.5">
-                
                 {fetchedAdmins.map((admin: any) => {
-                  setIsLoading(true);
-                  setFetchedAdmins(organization.admins || []);
                   const adminDisplayName = admin.full_name || 
                     (admin.first_name || admin.last_name 
                       ? `${admin.first_name || ''} ${admin.last_name || ''}`.trim() 
@@ -151,8 +230,17 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
                     ? (admin.profile_picture.startsWith('http') ? admin.profile_picture : `${backendBaseUrl}${admin.profile_picture}`)
                     : `https://ui-avatars.com/api/?name=${encodeURIComponent(adminDisplayName)}&background=random&size=100`;
 
-                  const isUserActive = admin.is_active !== false;
+                  let displayStatus = 'Active';
+                  let statusStyles = 'bg-emerald-50 text-emerald-700 border-emerald-100';
 
+                  if (admin.id.toString().startsWith('pending') || admin.status === 'Pending') {
+                    displayStatus = 'Pending';
+                    statusStyles = 'bg-amber-50 text-amber-700 border-amber-100';
+                  } else if (admin.is_active === false || admin.status === 'Blocked') {
+                    displayStatus = 'Blocked';
+                    statusStyles = 'bg-neutral-100 text-neutral-500 border-neutral-200';
+                  }
+                             
                   return (
                     <div 
                       key={admin.id} 
@@ -169,12 +257,8 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
                           <h4 className="text-sm font-bold text-neutral-800 truncate">
                             {adminDisplayName}
                           </h4>
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                            isUserActive 
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                              : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-                          }`}>
-                            {isUserActive ? 'Active' : 'Blocked'}
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${statusStyles}`}>
+                            {displayStatus}
                           </span>
                         </div>
                         
@@ -198,6 +282,30 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
                 </p>
               </div>
             )}
+
+            {/* Add Organization Admin Action Section */}
+            <div className="mt-6 p-4 bg-neutral-50 rounded-2xl border border-neutral-100">
+              <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <IoPersonAddOutline size={12} /> Add New Organization Admin
+              </h4>
+              <form onSubmit={handleAddAdminSubmit} className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="Enter admin's email address"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  className="flex-1 bg-white border border-neutral-200 rounded-xl px-3 py-2 text-xs font-medium placeholder-neutral-400 focus:outline-none focus:border-neutral-900 transition-all"
+                  disabled={isAddingAdmin}
+                />
+                <button
+                  type="submit"
+                  disabled={isAddingAdmin || !newAdminEmail.trim()}
+                  className="px-4 py-2 bg-neutral-900 text-white rounded-xl text-xs font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isAddingAdmin ? 'Adding...' : 'Add Admin'}
+                </button>
+              </form>
+            </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-neutral-100 hidden md:flex justify-end">
