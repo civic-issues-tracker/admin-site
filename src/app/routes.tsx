@@ -12,11 +12,6 @@ import AdminAnalyticsPage from '../features/dashboard-admin/pages/AdminAnalytics
 import AdminUsersPage from '../features/dashboard-admin/pages/AdminUsersPage'
 // import AdminAiMonitoringPage from '../features/dashboard-admin/pages/AdminAiMonitoringPage'
 import AdminSettingsPage from '../features/dashboard-admin/pages/AdminSettingsPage'
-import OrganizationAdminDashboardLayout from '../features/dashboard-organization-admin/OrganizationAdminDashboardLayout'
-import OrganizationAdminDashboardPage from '../features/dashboard-organization-admin/pages/OrganizationAdminDashboardPage'
-import OrganizationAdminIssuesPage from '../features/dashboard-organization-admin/pages/OrganizationAdminIssuesPage'
-import OrganizationAdminAnalyticsPage from '../features/dashboard-organization-admin/pages/OrganizationAdminAnalyticsPage'
-import OrganizationAdminAlertsPage from '../features/dashboard-organization-admin/pages/OrganizationAdminAlertsPage'
 
 const router = createBrowserRouter([
   // --- PUBLIC AUTH SECTION ---
@@ -76,38 +71,6 @@ const router = createBrowserRouter([
         element: <AdminSettingsPage /> 
       },
     ]
-  },
-
-  // --- ORGANIZATION ADMIN DASHBOARD ---
-  {
-    path: '/organization-admin',
-    element: (
-      <ProtectedRoute allowedRoles={['organization_admin']}>
-        <OrganizationAdminDashboardLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        index: true,
-        element: <Navigate to="dashboard" replace />,
-      },
-      {
-        path: 'dashboard',
-        element: <OrganizationAdminDashboardPage />,
-      },
-      {
-        path: 'map',
-        element: <OrganizationAdminIssuesPage />,
-      },
-      {
-        path: 'resolved',
-        element: <OrganizationAdminAnalyticsPage />,
-      },
-      {
-        path: 'notifications',
-        element: <OrganizationAdminAlertsPage />,
-      },
-    ],
   },
 
   // --- 404 CATCH-ALL ---

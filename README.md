@@ -1,73 +1,79 @@
-# React + TypeScript + Vite
+# Admin Site
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript web application for system administrators to manage the entire Civic Issues Tracker platform.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Dashboard**: System overview and statistics
+- **Organizations**: Create, manage, and activate organizations
+- **Categories**: Manage issue categories and subcategories
+- **Issues**: View and manage all system issues
+- **Users**: Manage user accounts and permissions
+- **Analytics**: System-wide analytics and reporting
+- **Settings**: System configuration and preferences
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19.2.5
+- TypeScript 6.0.2
+- Vite 8.0.10
+- TailwindCSS 4.3.0
+- React Router 7.15.0
+- Axios 1.16.0
+- Recharts 3.8.1
 
-## Expanding the ESLint configuration
+## Quick Start
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# Install dependencies
+npm install --legacy-peer-deps
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Runs on `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Build
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
+
+Output: `dist/` folder
+
+## Environment
+
+Create a `.env` file:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+## Project Structure
+
+```
+src/
+├── app/              # Routes and layout
+├── components/       # Reusable UI components
+├── context/          # React Context (Auth)
+├── features/         # Feature modules
+├── hooks/            # Custom hooks
+├── lib/              # Utilities
+├── stores/           # State management
+└── types/            # TypeScript types
+```
+
+## API Integration
+
+Uses JWT authentication with refresh tokens. API requests configured via `VITE_API_BASE_URL`.
+
+## Linting
+
+```bash
+npm run lint
+```
+
+## License
+
+Civic Issues Tracker Project
