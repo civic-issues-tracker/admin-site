@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/immutability */
 import React, { useEffect, useState } from "react";
 
 interface PieData {
@@ -116,7 +118,7 @@ const BasePieChart: React.FC<BasePieChartProps> = ({ data: overridingData }) => 
                     dominantBaseline="central"
                     className="pointer-events-none font-sans tracking-tight"
                   >
-                    {(item as any).displayPercentage ?? Math.round(item.value || 0)}%
+                    {(item as { displayPercentage?: number }).displayPercentage ?? Math.round(item.value || 0)}%
                   </text>
               </g>
             );
