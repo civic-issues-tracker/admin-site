@@ -31,10 +31,9 @@ const AdminAnalyticsPage: React.FC = () => {
     const loadSystemDataAndAnalytics = async () => {
       try {
         setLoading(true);
-        
         const [
           issuesRes, 
-          monthlyAnalyticsRes, 
+          // monthlyAnalyticsRes, 
           categoryRatiosRes,
           weeklyActivityRes,
           orgTriageRes,
@@ -51,6 +50,9 @@ const AdminAnalyticsPage: React.FC = () => {
         ]);
 
         setRawIssues(Array.isArray(issuesRes.data) ? issuesRes.data : []);
+        
+        const _rawIssues = issuesRes.data;
+        console.log(_rawIssues);
 
         // Explicitly map keys from category-ratios response payload
         const ratiosPayload = Array.isArray(categoryRatiosRes.data) ? categoryRatiosRes.data : [];
@@ -70,6 +72,7 @@ const AdminAnalyticsPage: React.FC = () => {
         console.error("Error running analytic engines pipeline:", error);
       } finally {
         setLoading(false);
+        
       }
     };
     loadSystemDataAndAnalytics();

@@ -232,8 +232,8 @@ const AdminOverviewPage: React.FC<AdminOverviewPageProps> = () => {
 
   return (
     <div className="w-full space-y-6 md:space-y-8 p-4 md:p-8 bg-[#FDFBF7] min-h-screen relative">
-      <AdminHeader onOpenIssue={(issue) => { setSelectedIssue(issue); setIsModalOpen(true); }} />
-
+      {/* <AdminHeader onOpenIssue={(issue) => { setSelectedIssue(issue); setIsModalOpen(true); }} /> */}
+      <AdminHeader onOpenIssue={() => {}} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {cards.map((stat, i) => (
           <AdminStatCard key={i} {...stat} />
