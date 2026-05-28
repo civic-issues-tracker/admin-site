@@ -106,7 +106,7 @@ export const OrganizationDetailModal: React.FC<OrganizationDetailModalProps> = (
     : 'https://placehold.co/100?text=Org';
 
   // SAFELY IDENTIFY LINKED CLASSIFICATIONS
-  const linkedCategoryName = organization.category?.name || organization.category_name;
+  const linkedCategoryName = organization.categories?.[0]?.name || organization.category_name;
   const targetSubcategories = organization.subcategories || [];
 
   return (
