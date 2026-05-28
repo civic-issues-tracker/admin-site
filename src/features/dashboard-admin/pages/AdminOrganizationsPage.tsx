@@ -151,8 +151,8 @@ const AdminOrganizationsPage = () => {
 
     const updatePayload = {
       name: data.name,
-      email: data.email,
-      phone: data.phone
+      contact_email: data.email,
+      contact_phone: data.phone
     };
     
     const createPayload = {
