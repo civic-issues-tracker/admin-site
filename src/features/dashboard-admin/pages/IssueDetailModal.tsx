@@ -1,6 +1,36 @@
+/* eslint-disable react-hooks/rules-of-hooks */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { privateApi } from '../../auth/services/authService'; 
+
+// Integrated clean categoryApi routing rules
+const categoryApi = {
+  // GET all active categories
+  getAll: async () => {
+    const response = await privateApi.get('/orgs/categories/');
+    return response.data;
+  },
+
+  // PATCH update a category
+  update: async (id: string, name: string) => {
+    const response = await privateApi.patch(`/orgs/categories/${id}/`, { name });
+    return response.data;
+  },
+
+  // DELETE (Soft-delete)
+  delete: async (id: string) => {
+    const response = await privateApi.delete(`/orgs/categories/${id}/`);
+    return response.data;
+  }
+};
+
+interface Category {
+  id: string;
+  name: string;
+  [key: string]: any;
+}
 
 interface IssueDetailModalProps {
   isOpen: boolean;
@@ -16,27 +46,71 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
   setIssues,
 }) => {
   const [notes, setNotes] = useState<string>('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  
   const [isSaving, setIsSaving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [fetchingCats, setFetchingCats] = useState<boolean>(false);
 
+  // Load baseline issue notes and configuration
   useEffect(() => {
     if (issue) {
       setNotes(issue.internal_notes || '');
+      setSelectedCategoryId(issue.category ? String(issue.category) : '');
     }
   }, [issue]);
 
-  if (!isOpen || !issue) return null;
+  // CATEGORY FETCHING (Synced with working reporting form implementation)
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!isOpen) return;
+      try {
+        setFetchingCats(true);
+        const [cats] = await Promise.all([categoryApi.getAll()]);
+        
+        // Handle variations in backend return formats (paginated .results array vs raw list)
+        const rawList = cats.results || cats;
+        const mergedData: Category[] = Array.isArray(rawList)
+          ? rawList.map((cat: any) => ({ ...cat }))
+          : [];
+          
+        setCategories(mergedData);
+      } catch (error) {
+        console.error("Failed to sync system categories:", error);
+        setCategories([]);
+      } finally {
+        setFetchingCats(false);
+      }
+    };
+    
+    fetchCategories();
+  }, [isOpen]);
 
   useEffect(() => {
-  if (issue?.images) {
-    console.log("CRITICAL IMAGE DATA LOG:", issue.images);
-  }
-}, [issue]);
+    if (issue?.images) {
+      console.log("CRITICAL IMAGE DATA LOG:", issue.images);
+    }
+  }, [issue]);
+
+  // --- HOOKS ARE ABOVE THIS LINE, CONDITIONAL RENDER BELOW ---
+  if (!isOpen || !issue) return null;
+
+  // UPDATED: Strict logic for status interaction
+  const canEditInternalNotes = issue.status === 'pending_admin' || issue.status === 'escalated';
 
   const handleSaveNotes = async () => {
     setIsSaving(true);
     try {
-      await privateApi.patch(`/issues/${issue.id}/`, {
-        internal_notes: notes,
+      const formData = new FormData();
+      formData.append('internal_notes', notes);
+
+      await privateApi.patch(`/issues/${issue.id}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       
       toast.success("Internal notes updated.");
@@ -52,37 +126,87 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
     }
   };
 
-  const handleQuickFlag = async () => {
-    const timeStamp = new Date().toLocaleString();
-    const flaggedNotes = notes 
-      ? `[FLAGGED on ${timeStamp}]\n${notes}`
-      : `[FLAGGED on ${timeStamp}] Admin flagged this issue.`;
-    
-    setNotes(flaggedNotes);
-    
+  const handleUpdateCategory = async () => {
+    if (!selectedCategoryId) {
+      toast.error("Please select a category first.");
+      return;
+    }
+    setIsUpdatingCategory(true);
     try {
-      await privateApi.patch(`/issues/${issue.id}/`, {
-        internal_notes: flaggedNotes,
+      const formData = new FormData();
+      formData.append('category', selectedCategoryId);
+
+      await privateApi.patch(`/issues/${issue.id}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      toast("Issue marked as flagged.", {
-        icon: "⚠️",
-      });
-      
+
+      toast.success("Issue category updated successfully.");
+
       const response = await privateApi.get('/issues/');
       setIssues(response.data.results || response.data);
     } catch (error) {
-      toast.error("Failed to flag issue.");
+      console.error(error);
+      toast.error("Failed to update issue category allocation.");
+    } finally {
+      setIsUpdatingCategory(false);
     }
   };
 
+  const handleApproveIssue = async () => {
+    setIsApproving(true);
+    try {
+      const formData = new FormData();
+      formData.append('status', 'submitted');
+
+      await privateApi.patch(`/issues/${issue.id}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      toast.success("Issue approved and moved to submitted.");
+      
+      const response = await privateApi.get('/issues/');
+      setIssues(response.data.results || response.data);
+      onClose(); 
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to approve issue.");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleRejectIssue = async () => {
+    setIsRejecting(true);
+    try {
+      const formData = new FormData();
+      formData.append('reason', notes);
+
+      await privateApi.patch(`/issues/${issue.id}/reject/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      toast.success("Issue has been rejected successfully.");
+      
+      const response = await privateApi.get('/issues/');
+      setIssues(response.data.results || response.data);
+      onClose(); 
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to reject issue.");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 animate-fadeIn">
       
-      {/* Click-outside backdrop catch area overlay */}
       <div className="absolute inset-0 -z-10" onClick={onClose} />
 
-      {/* Modal Card Box Container */}
       <div className="bg-white w-full max-w-5xl h-full max-h-[90vh] md:h-[85vh] rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-neutral-100 transition-all">
         
         {/* Header Section */}
@@ -99,11 +223,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Dynamic Split Layout Content Frame */}
-        {/* FIXED: Upgraded container to completely allow independent row scrolling flows inside small viewports */}
+        {/* Scrollable Split Layout */}
         <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden min-h-0">
           
-          {/* LEFT SIDE: Resident Submission Details Feed Card */}
+          {/* LEFT SIDE: Details Feed Card */}
           <div className="flex-1 p-5 sm:p-8 overflow-y-auto border-b md:border-b-0 md:border-r border-neutral-100 space-y-5 sm:space-y-6 bg-white min-h-0">
             <div>
               <h4 className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1.5">Resident Contact</h4>
@@ -135,20 +258,18 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Evidence Image Attachments Container */}
+            {/* Evidence Image Attachments */}
             <div>
               <h4 className="text-[10px] sm:text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Attached Attachments
               </h4>
               
-              {/* Normalize images into a single array format regardless of data structure */}
               {(() => {
                 let normalizedImages: any[] = [];
-                
                 if (issue.images && issue.images.length > 0) {
                   normalizedImages = issue.images;
                 } else if (issue.image_url) {
-                  normalizedImages = [issue.image_url]; // Turn the single string into a 1-item array
+                  normalizedImages = [issue.image_url];
                 }
 
                 if (normalizedImages.length === 0) {
@@ -163,17 +284,13 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:w-3xl md:h-48 lg:w-4xl overflow-hidden ">
                     {normalizedImages.map((img: any, idx: number) => {
                       const backendBaseUrl = import.meta.env.VITE_BASE_URL || "";
-                      
-                      // SAFELY RESOLVE THE IMAGE STRING REGARDLESS OF FORMAT
                       let imgSrcString = "";
-                      
                       if (typeof img === 'string') {
                         imgSrcString = img;
                       } else if (img && typeof img === 'object') {
                         imgSrcString = img.image_url || img.url || img.file || img.image || "";
                       }
 
-                      // Fallback if the extracted structure is completely empty
                       if (!imgSrcString) {
                         return (
                           <div key={idx} className="w-full h-20 sm:h-24 bg-neutral-50 flex items-center justify-center rounded-xl border border-neutral-200 text-[10px] text-neutral-400 italic">
@@ -182,7 +299,6 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                         );
                       }
 
-                      // CLEANLY STITCH THE ABSOLUTE BACKEND URL PATH
                       const fullImgUrl = imgSrcString.startsWith('http') 
                         ? imgSrcString 
                         : `${backendBaseUrl}${imgSrcString.startsWith('/') ? '' : '/'}${imgSrcString}`;
@@ -205,8 +321,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
             </div>
           </div>
 
-          {/* RIGHT SIDE: Dedicated Interactive Administrative Action Panel */}
-          {/* FIXED: Changed to flexible flexbox wrappers (`w-full md:w-[360px] lg:w-[380px] md:overflow-y-auto`) */}
+          {/* RIGHT SIDE: Interactive Admin Panel */}
           <div className="w-full md:w-90 lg:w-95 bg-neutral-50/60 p-5 sm:p-8 flex flex-col justify-between md:overflow-y-auto shrink-0 space-y-6 md:space-y-0">
             <div className="space-y-5 sm:space-y-6">
               <div>
@@ -225,18 +340,52 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 </div>
               </div>
 
+              {/* Triage Category Selection Section */}
+              <div className="flex flex-col">
+                <div className="flex justify-between items-center mb-1.5">
+                  <h4 className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider">Assign Triage Category</h4>
+                </div>
+
+                <div className="space-y-2">
+                  <select
+                    value={selectedCategoryId}
+                    disabled={isUpdatingCategory || fetchingCats || !canEditInternalNotes}
+                    onChange={(e) => setSelectedCategoryId(e.target.value)}
+                    className="w-full p-2.5 bg-white border border-neutral-200 rounded-xl text-xs font-medium text-neutral-800 outline-none shadow-sm focus:border-[#A07156] disabled:opacity-60 cursor-pointer"
+                  >
+                    <option value="">{fetchingCats ? "Loading Category Data..." : "-- Choose Existing Category --"}</option>
+                    {categories.map((cat) => (
+                      <option key={String(cat.id)} value={String(cat.id)}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleUpdateCategory}
+                    disabled={isUpdatingCategory || !selectedCategoryId || !canEditInternalNotes}
+                    className="w-full py-2 bg-[#A07156] hover:bg-[#2C0901] disabled:bg-neutral-200 disabled:text-neutral-400 text-white font-bold text-[11px] rounded-xl shadow-sm transition-all cursor-pointer transform active:scale-[0.99]"
+                  >
+                    {isUpdatingCategory ? "Assigning..." : "Assign Category"}
+                  </button>
+                </div>
+              </div>
+
               {/* Administrative Note Area */}
               <div className="flex flex-col">
                 <h4 className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Internal Admin Notes</h4>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Type internal notes, logs, or updates here..."
-                  className="w-full h-32 sm:h-40 p-3 sm:p-4 text-xs font-medium bg-white border border-neutral-200 rounded-xl sm:rounded-2xl shadow-inner focus:border-[#A07156] outline-none resize-none transition-all leading-relaxed text-neutral-800"
+                  disabled={!canEditInternalNotes}
+                  placeholder={canEditInternalNotes ? "Type internal notes, logs, or updates here..." : "Notes are locked for this issue status."}
+                  className={`w-full h-32 sm:h-40 p-3 sm:p-4 text-xs font-medium bg-white border border-neutral-200 rounded-xl sm:rounded-2xl shadow-inner focus:border-[#A07156] outline-none resize-none transition-all leading-relaxed text-neutral-800 ${
+                    !canEditInternalNotes ? "opacity-60 cursor-not-allowed bg-neutral-100" : ""
+                  }`}
                 />
                 <button
                   onClick={handleSaveNotes}
-                  disabled={isSaving}
+                  disabled={isSaving || !canEditInternalNotes}
                   className="mt-2 w-full py-2.5 sm:py-3 bg-[#2C0901] hover:bg-[#A07156] disabled:bg-neutral-300 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer transform active:scale-[0.98]"
                 >
                   {isSaving ? "Saving Note..." : "Save Internal Note"}
@@ -244,13 +393,25 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Quick Risk Actions Footer Box */}
-            <div className="pt-4 sm:pt-6 border-t border-neutral-200/60 md:mt-6 shrink-0">
+            {/* Action Buttons Box */}
+            <div className="pt-4 sm:pt-6 border-t border-neutral-200/60 md:mt-6 shrink-0 space-y-2">
               <button
-                onClick={handleQuickFlag}
-                className="w-full py-2.5 border border-amber-500/30 text-amber-700 bg-amber-50/50 hover:bg-amber-50 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98]"
+                onClick={handleApproveIssue}
+                disabled={isApproving || !canEditInternalNotes}
+                className={`w-full py-2.5 border border-green-500/30 text-green-700 bg-green-50/50 hover:bg-green-50 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.98] cursor-pointer ${
+                  !canEditInternalNotes ? "opacity-40 cursor-not-allowed grayscale" : ""
+                }`}
               >
-                ⚠️ Flag This Report
+                ✅ {isApproving ? "Approving..." : "Approve Issue"}
+              </button>
+              <button
+                onClick={handleRejectIssue}
+                disabled={isRejecting || !canEditInternalNotes}
+                className={`w-full py-2.5 border border-red-500/30 text-red-700 bg-red-50/50 hover:bg-red-50 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.98] cursor-pointer ${
+                  !canEditInternalNotes ? "opacity-40 cursor-not-allowed grayscale" : ""
+                }`}
+              >
+                🛑 {isRejecting ? "Rejecting..." : "Reject Issue"}
               </button>
             </div>
 

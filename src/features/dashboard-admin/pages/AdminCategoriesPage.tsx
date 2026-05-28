@@ -7,6 +7,7 @@ import { categoryApi } from '../../../features/auth/services/CategorySevice';
 import { subcategoryApi } from '../../../features/auth/services/subcategoryService'; 
 import {  Trash2, Edit,  X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ThemeLoader from '../../../components/ui/ThemeLoader';
 
 // Validation Schemas
 const categorySchema = z.object({
@@ -36,6 +37,7 @@ const AdminCategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const { 
     register: regCat, 
@@ -68,11 +70,14 @@ const AdminCategoriesPage: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
       try {
         const data = await categoryApi.getAll();
         setCategories(data);
       } catch (error) {
         console.error("Failed to load data", error);
+      } finally {
+        setLoading(false);
       }
     };
     load();
@@ -289,8 +294,18 @@ const AdminCategoriesPage: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] overflow-hidden border border-secondary/5 shadow-sm">
+      {loading ? (
+        <div className="p-10 text-center text-neutral-500 font-medium">
+          <ThemeLoader size= "lg"/>
+        </div>
+      ) : categories.length === 0 ? (
+        <div className="p-10 text-center text-neutral-500 font-medium">
+          No records found
+        </div>
+      ) : (
         <Table columns={columns} data={categories} />
-      </div>
+      )}
+    </div>
     </div>
   );
 };

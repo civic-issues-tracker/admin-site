@@ -10,6 +10,7 @@ import { subcategoryApi } from '../../../features/auth/services/subcategoryServi
 import { Trash2, Edit, Building2, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { OrganizationDetailModal } from './OrganizationDetailModal';
+import ThemeLoader from '../../../components/ui/ThemeLoader';
 
 // 1. Zod schema representing the strict data contract
 const organizationSchema = z.object({
@@ -47,7 +48,7 @@ const AdminOrganizationsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  
+  const [loading, setLoading ] = useState(true);
   const [subcategoriesList, setSubcategoriesList] = useState<string[]>([]);
   // const [subInput, setSubInput] = useState<string>("");
 
@@ -83,6 +84,7 @@ const AdminOrganizationsPage = () => {
   const isCreatingCustomCategory = selectedCategoryValue === "NEW_CATEGORY";
 
   const loadDataPipeline = async () => {
+    setLoading(true);
     try {
       const [orgsData, categoriesData] = await Promise.all([
         organizationApi.getAll(),
@@ -95,7 +97,13 @@ const AdminOrganizationsPage = () => {
     } catch (error) {
       console.error("Failed to compile layout data dependencies", error);
     }
+    finally{
+      setLoading(false);
+    }
   };
+
+  
+
 
   useEffect(() => {
     loadDataPipeline();
@@ -470,22 +478,32 @@ const AdminOrganizationsPage = () => {
       </div>
 
       <div className="bg-white rounded-4xl md:rounded-[2.5rem] overflow-x-auto border border-secondary/5 shadow-sm">
+      {loading ? (
+        <div className="flex justify-center items-center w-full animate-in fade-in duration-300">
+          <ThemeLoader size= "lg"/>
+        </div>
+      ) : organizations.length === 0 ? (
+        <div className="p-10 text-center text-neutral-500 font-medium">
+          No records found
+        </div>
+      ) : (
         <Table 
           columns={columns} 
           data={organizations}
           onRowClick={handleRowClick}  
         />
-        
-        <OrganizationDetailModal 
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedOrg(null);
-          }}
-          organization={selectedOrg}
-          setOrganizationsList={setOrganizations}
-        />
-      </div>
+      )}
+
+      <OrganizationDetailModal 
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedOrg(null);
+        }}
+        organization={selectedOrg}
+        setOrganizationsList={setOrganizations}
+      />
+    </div>
     </div>
   );
 };

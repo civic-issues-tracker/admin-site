@@ -21,8 +21,9 @@ const Table = <T extends { id?: string | number }>({
   isLoading = false 
 }: TableProps<T>) => {
 
-
-  const showLoader = isLoading || !data || data.length === 0;
+  // FIXED: Only show loader if explicitly loading or data is missing. 
+  // An empty array (data.length === 0) will now correctly fall through to the empty state.
+  const showLoader = isLoading || !data;
 
   return (
     <div className="w-full overflow-hidden rounded-[2.5rem] border border-secondary/5 bg-tertiary shadow-2xl shadow-secondary/5">

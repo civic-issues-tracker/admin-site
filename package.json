@@ -12,6 +12,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.3.0",
+    "@tanstack/react-virtual": "^3.13.26",
     "axios": "^1.16.0",
     "framer-motion": "^12.38.0",
     "i18next": "^26.1.0",
