@@ -9,7 +9,7 @@ const AdminLayout: React.FC = () => {
       <SidebarAdmin />
       
       <main className="flex-1 flex flex-col w-full overflow-x-hidden bg-[#FDFBF7]">
-        <AdminHeader />
+        <AdminHeader onOpenIssue={() => console.log("Header clicked")} />
         <div className="p-4 md:p-8">
           <Outlet /> 
         </div>

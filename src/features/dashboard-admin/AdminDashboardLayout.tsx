@@ -13,7 +13,7 @@ const AdminDashboardLayout: React.FC = () => {
       {/* 2. Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
-        <AdminHeader />
+        <AdminHeader onOpenIssue={() => console.log("Header clicked")} />
 
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-400 mx-auto pb-12">

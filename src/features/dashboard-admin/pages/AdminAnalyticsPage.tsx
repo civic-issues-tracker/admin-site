@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo } from "react";
 import BaseBarChart from "../../../components/ui/BaseBarChart";
@@ -33,7 +32,6 @@ const AdminAnalyticsPage: React.FC = () => {
         setLoading(true);
         const [
           issuesRes, 
-          // monthlyAnalyticsRes, 
           categoryRatiosRes,
           weeklyActivityRes,
           orgTriageRes,
@@ -53,6 +51,8 @@ const AdminAnalyticsPage: React.FC = () => {
         
         const _rawIssues = issuesRes.data;
         console.log(_rawIssues);
+
+        
 
         // Explicitly map keys from category-ratios response payload
         const ratiosPayload = Array.isArray(categoryRatiosRes.data) ? categoryRatiosRes.data : [];
@@ -77,6 +77,10 @@ const AdminAnalyticsPage: React.FC = () => {
     };
     loadSystemDataAndAnalytics();
   }, []);
+
+  useEffect(() => {
+            console.log("row issues");
+        }, [rawIssues])
 
   const processedMetrics = useMemo(() => {
     const themeColors = ['#2C0901', '#A07156', '#D4A373', '#E5D3B3', '#C19A6B', '#8B5A2B'];
