@@ -51,7 +51,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
   
   const [isSaving, setIsSaving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
+  // const [isApproving, setIsApproving] = useState(false);
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   const [fetchingCats, setFetchingCats] = useState<boolean>(false);
 
@@ -154,29 +154,29 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
     }
   };
 
-  const handleApproveIssue = async () => {
-    setIsApproving(true);
-    try {
-      const formData = new FormData();
-      formData.append('status', 'submitted');
+  // const handleApproveIssue = async () => {
+  //   setIsApproving(true);
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append('status', 'submitted');
 
-      await privateApi.patch(`/issues/${issue.id}/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      toast.success("Issue approved and moved to submitted.");
+  //     await privateApi.patch(`/issues/${issue.id}/`, formData, {
+  //       headers: {
+  //         'Content-Type': 'multipart/form-data',
+  //       },
+  //     });
+  //     toast.success("Issue approved and moved to submitted.");
       
-      const response = await privateApi.get('/issues/');
-      setIssues(response.data.results || response.data);
-      onClose(); 
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to approve issue.");
-    } finally {
-      setIsApproving(false);
-    }
-  };
+  //     const response = await privateApi.get('/issues/');
+  //     setIssues(response.data.results || response.data);
+  //     onClose(); 
+  //   } catch (error) {
+  //     console.error(error);
+  //     toast.error("Failed to approve issue.");
+  //   } finally {
+  //     setIsApproving(false);
+  //   }
+  // };
 
   const handleRejectIssue = async () => {
     setIsRejecting(true);
@@ -395,7 +395,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
             {/* Action Buttons Box */}
             <div className="pt-4 sm:pt-6 border-t border-neutral-200/60 md:mt-6 shrink-0 space-y-2">
-              <button
+              {/* <button
                 onClick={handleApproveIssue}
                 disabled={isApproving || !canEditInternalNotes}
                 className={`w-full py-2.5 border border-green-500/30 text-green-700 bg-green-50/50 hover:bg-green-50 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.98] cursor-pointer ${
@@ -403,7 +403,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 }`}
               >
                 ✅ {isApproving ? "Approving..." : "Approve Issue"}
-              </button>
+              </button> */}
               <button
                 onClick={handleRejectIssue}
                 disabled={isRejecting || !canEditInternalNotes}
