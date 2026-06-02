@@ -12,6 +12,7 @@ import AdminAnalyticsPage from '../features/dashboard-admin/pages/AdminAnalytics
 import AdminUsersPage from '../features/dashboard-admin/pages/AdminUsersPage'
 // import AdminAiMonitoringPage from '../features/dashboard-admin/pages/AdminAiMonitoringPage'
 import AdminSettingsPage from '../features/dashboard-admin/pages/AdminSettingsPage'
+import CompleteRegistrationPage from '../features/dashboard-admin/pages/CompleteRegistrationPage'
 
 const router = createBrowserRouter([
   // --- PUBLIC AUTH SECTION ---
@@ -21,7 +22,8 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/login" replace /> }, 
       { path: 'login', element: <LoginPage /> },   
       { path: 'signup', element: <SignupPage /> }, 
-      { path: 'reset-password', element: <ResetPasswordPage /> }                                                    
+      { path: 'reset-password', element: <ResetPasswordPage /> },
+      { path: 'complete-registration', element: <CompleteRegistrationPage /> }
     ]
   },
 

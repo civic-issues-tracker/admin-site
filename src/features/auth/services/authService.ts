@@ -59,8 +59,9 @@ interface CreateOrgAdminPayload {
 
 interface CompleteOrgAdminPayload {
   token: string; // OTP sent via email link
+  full_name: string;
   password: string;
-  confirm_password: string;
+  confirm_password?: string;
 }
 
 

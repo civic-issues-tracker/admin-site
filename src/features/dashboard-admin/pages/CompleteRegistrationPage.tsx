@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { organizationApi } from '../../auth/services/OrganizationService';
+import { authService } from '../../auth/services/authService';
 import { toast } from 'react-hot-toast';
 
 const CompleteRegistrationPage = () => {
@@ -42,7 +42,7 @@ const CompleteRegistrationPage = () => {
     setIsSubmitting(true);
     try {
       // Send the token along with the password and full name to your backend registration endpoint
-      await organizationApi.completeAdminRegistration({
+      await authService.completeOrgRegistration({
         token: token,
         full_name: fullName,
         password: password,
