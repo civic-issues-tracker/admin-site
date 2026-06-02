@@ -11,6 +11,7 @@ const CompleteRegistrationPage = () => {
   // Grab the ?token=... value out of the URL bar automatically
   const token = searchParams.get('token');
 
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,6 +21,11 @@ const CompleteRegistrationPage = () => {
 
     if (!token) {
       toast.error("Registration token is missing or invalid.");
+      return;
+    }
+
+    if (!fullName.trim()) {
+      toast.error("Full name is required.");
       return;
     }
 
@@ -35,9 +41,10 @@ const CompleteRegistrationPage = () => {
 
     setIsSubmitting(true);
     try {
-      // Send the token along with the password to your backend registration endpoint
+      // Send the token along with the password and full name to your backend registration endpoint
       await organizationApi.completeAdminRegistration({
         token: token,
+        full_name: fullName,
         password: password,
       });
 
@@ -83,6 +90,22 @@ const CompleteRegistrationPage = () => {
         <hr className="border-secondary/5" />
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Full Name Field */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-body text-[10px] uppercase tracking-widest font-black text-secondary/40 ml-2">
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. John Doe"
+              disabled={isSubmitting}
+              className="w-full bg-primary/5 border border-secondary/10 rounded-2xl px-5 py-4 text-sm text-neutral-800 outline-none transition-all focus:border-secondary/30 disabled:opacity-50"
+              required
+            />
+          </div>
+
           {/* Password Field */}
           <div className="flex flex-col gap-1.5">
             <label className="font-body text-[10px] uppercase tracking-widest font-black text-secondary/40 ml-2">
