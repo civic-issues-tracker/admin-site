@@ -227,9 +227,9 @@ const LoginForm: React.FC = () => {
           </button>
 
           <div className="space-y-4">
-            <h2 className="text-xl font-black uppercase tracking-tighter text-secondary">Recover Access</h2>
+            <h2 className="text-xl font-black uppercase tracking-tighter text-secondary">Reset Password</h2>
             <p className="text-[10px] text-secondary/50 uppercase tracking-widest leading-relaxed">
-              Choose your recovery method to receive a reset code or link.
+              Choose your reset method to receive a reset code or link.
             </p>
           </div>
 
