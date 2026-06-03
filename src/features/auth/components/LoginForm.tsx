@@ -251,7 +251,7 @@ const LoginForm: React.FC = () => {
           </div>
 
           <Input 
-            label={forgotMethod === 'email' ? "Recovery Email" : "Recovery Phone"} 
+            label={forgotMethod === 'email' ? "Email Address" : "Phone Number"} 
             placeholder={forgotMethod === 'email' ? "email@example.com" : "+251..."}
             value={forgotIdentifier}
             onChange={(e) => setForgotIdentifier(e.target.value)}
