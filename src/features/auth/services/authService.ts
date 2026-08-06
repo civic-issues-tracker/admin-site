@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -16,9 +17,108 @@ export const privateApi = axios.create({
   withCredentials: true,
 });
 
-// Note: Request and Response interceptors are managed by AuthContext
-// to ensure proper state synchronization
+// Global variable to keep track of the in-memory access token
+let accessTokenInMemory: string | null = null;
 
+// Helper to update the authorization header
+export const setAuthHeader = (token: string | null) => {
+  accessTokenInMemory = token;
+  if (token) {
+    privateApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete privateApi.defaults.headers.common['Authorization'];
+  }
+};
+
+// Variables to handle simultaneous 401 requests elegantly
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Request Interceptor: Make sure the memory token is always attached
+privateApi.interceptors.request.use(
+  (config) => {
+    if (accessTokenInMemory && !config.headers['Authorization']) {
+      config.headers['Authorization'] = `Bearer ${accessTokenInMemory}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Safe, no-loop silent refresh
+privateApi.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // 1. Only run if status is 401 and this request hasn't been retried already
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      
+      // If the request that failed is the actual refresh request, DO NOT loop. Log out.
+      if (originalRequest.url?.includes('/auth/refresh-token/')) {
+        sessionStorage.removeItem('user');
+        setAuthHeader(null);
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      // 2. If a refresh is already in progress, queue up this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            return privateApi(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      isRefreshing = true;
+
+      try {
+        // 3. Request a new access token from the backend
+        // This runs on publicApi to avoid adding headers, but passes cookies
+        const res = await publicApi.post('/auth/refresh-token/', {}, { withCredentials: true });
+        
+        // Extract the new access token from the backend response
+        const newAccessToken = res.data.access;
+        
+        // Save the new token in memory & update headers
+        setAuthHeader(newAccessToken);
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+
+        processQueue(null, newAccessToken);
+        isRefreshing = false;
+
+        return privateApi(originalRequest); 
+      } catch (err) {
+        processQueue(err, null);
+        isRefreshing = false;
+        
+        // Only kick them out if we are absolutely sure the refresh token is dead/expired
+        sessionStorage.removeItem('user');
+        setAuthHeader(null);
+        window.location.href = '/login';
+        return Promise.reject(err);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 interface LoginCredentials {
   email?: string; 
   phone?: string;

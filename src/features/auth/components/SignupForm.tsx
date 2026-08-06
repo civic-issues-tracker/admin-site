@@ -9,7 +9,6 @@ import Input from '../../../../src/components/ui/Input';
 import { Button } from '../../../components/ui/Button';
 import { useAuth } from '../../../hooks/useAuth.ts'; 
 import { authService } from '../../../features/auth/services/authService';
-import Toast from '../../../components/ui/Toast'; 
 import axios from 'axios';
 import { isOrganizationAdminRole } from '../../../lib/roleUtils';
 
@@ -46,9 +45,8 @@ const SignupForm: React.FC = () => {
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false); 
-  const [toast, setToast] = useState<{ show: boolean; msg: string; type: 'error' | 'success' }>({ show: false, msg: '', type: 'error' });
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, showToast } = useAuth();
 
   const { register, trigger, getValues, formState: { errors } } = useForm<SignupData>({
     resolver: zodResolver(signupSchema),
@@ -60,10 +58,6 @@ const SignupForm: React.FC = () => {
     if (isStepValid) setStep(2);
   };
 
-  const triggerToast = (msg: string, type: 'success' | 'error') => {
-    setToast({ show: true, msg, type });
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 5000);
-  };
 
   const onFinalSubmit = async (method: 'sms' | 'email') => {
     setLoading(true);
@@ -83,13 +77,13 @@ const SignupForm: React.FC = () => {
       if(result.temp_id) {
         setTempId(result.temp_id);
         setStep(3);
-        triggerToast(`OTP sent via ${method === 'sms' ? 'SMS' : 'Email'}.`, "success");
+        showToast(`OTP sent via ${method === 'sms' ? 'SMS' : 'Email'}.`, "success");
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         if (status === 429) {
-          triggerToast("Security: Too many signup attempts. Please wait 60s.", "error");
+          showToast("Security: Too many signup attempts. Please wait 60s.", "error");
         } else {
           const responseData = error.response?.data;
           const fieldError = responseData && typeof responseData === 'object'
@@ -100,7 +94,7 @@ const SignupForm: React.FC = () => {
             responseData?.error ||
             (Array.isArray(fieldError) ? String(fieldError[0]) : typeof fieldError === 'string' ? fieldError : null) ||
             "Registration failed. Please check your data.";
-          triggerToast(errorDetail, "error");
+          showToast(errorDetail, "error");
         }
       }
     } finally {
@@ -110,7 +104,7 @@ const SignupForm: React.FC = () => {
 
   const handleVerify = async () => {
     if (!tempId || otpCode.length < 4) {
-      triggerToast("Please enter a valid verification code.", "error");
+      showToast("Please enter a valid verification code.", "error");
       return;
     }
 
@@ -121,11 +115,11 @@ const SignupForm: React.FC = () => {
         otp_code: otpCode
       });
 
-        if (result.access && result.user) {
-        triggerToast("Identity verified! Access granted.", "success");
+        if ( result.user) {
+        showToast("Identity verified! Access granted.", "success");
         
         setTimeout(() => {
-          login({ access: result.access, refresh: result.refresh, user: result.user });
+          login(result.user);
           const role = result.user.role_name;
           if (role === 'system_admin') navigate('/admin-dashboard');
           else if (isOrganizationAdminRole(role)) navigate('/organization-admin/dashboard');
@@ -135,7 +129,7 @@ const SignupForm: React.FC = () => {
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const errorDetail = error.response?.data?.detail || "Invalid code. Please try again.";
-        triggerToast(errorDetail, "error");
+        showToast(errorDetail, "error");
       }
     } finally {
       setLoading(false);
@@ -180,6 +174,7 @@ const SignupForm: React.FC = () => {
                   placeholder="••••••••"
                   {...register("password")}
                   error={errors.password?.message}
+                  autoComplete='new-password'
                 />
                 <button
                   type="button"
@@ -315,12 +310,6 @@ const SignupForm: React.FC = () => {
         )}
       </AnimatePresence>
     </div>
-    <Toast 
-      isVisible={toast.show} 
-      message={toast.msg} 
-      type={toast.type} 
-      onClose={() => setToast(prev => ({ ...prev, show: false }))} 
-    />
     </>
   );
 };

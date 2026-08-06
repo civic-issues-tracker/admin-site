@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/incompatible-library */
-import React, { useEffect, useState } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +11,7 @@ import { subcategoryApi } from '../../../features/auth/services/subcategoryServi
 import { Trash2, Edit, Building2, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { OrganizationDetailModal } from './OrganizationDetailModal';
-import ThemeLoader from '../../../components/ui/ThemeLoader';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // 1. Zod schema representing the strict data contract
 const organizationSchema = z.object({
@@ -42,15 +43,59 @@ interface Organization {
   subcategories?: Array<{ id: string; name: string }> | null;
 }
 
+// Custom Table Skeleton Component
+const OrganizationTableSkeleton = () => (
+  <div className="w-full bg-white rounded-4xl md:rounded-[2.5rem] overflow-hidden border border-secondary/5 shadow-sm animate-pulse p-6 space-y-4">
+    <div className="h-8 bg-secondary/10 rounded-xl w-full mb-6" />
+    {[...Array(5)].map((_, idx) => (
+      <div key={idx} className="flex items-center justify-between gap-4 py-3 border-b border-secondary/5">
+        <div className="h-4 bg-secondary/10 rounded w-1/4" />
+        <div className="h-4 bg-secondary/10 rounded w-1/4" />
+        <div className="h-4 bg-secondary/10 rounded w-1/5" />
+        <div className="h-6 bg-secondary/10 rounded-xl w-16" />
+        <div className="h-4 bg-secondary/10 rounded w-12" />
+      </div>
+    ))}
+  </div>
+);
+
+const fetchOrganizationsPipeline = async () => {
+  const orgsData = await organizationApi.getAll();
+  return [...orgsData].sort((a: Organization, b: Organization) => b.id.localeCompare(a.id));
+};
+
+const fetchCategoriesPipeline = async () => {
+  return categoryApi.getAll ? await categoryApi.getAll() : [];
+};
+
 const AdminOrganizationsPage = () => {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [existingCategories, setExistingCategories] = useState<CategoryItem[]>([]);
+  const queryClient = useQueryClient();
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [loading, setLoading ] = useState(true);
   const [subcategoriesList, setSubcategoriesList] = useState<string[]>([]);
-  // const [subInput, setSubInput] = useState<string>("");
+
+  // 1. Fetch Organizations with TanStack Query
+  const { 
+    data: organizations = [], 
+    isLoading: isOrgsLoading 
+  } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: fetchOrganizationsPipeline,
+    staleTime: 10 * 60 * 1000, // Cache data for 10 minutes
+    gcTime: 15 * 60 * 1000,
+  });
+
+  // 2. Fetch Categories with TanStack Query
+  const { 
+    data: existingCategories = [] 
+  } = useQuery<CategoryItem[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategoriesPipeline,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
 
   const handleRowClick = async (org: Organization) => {
     try {
@@ -68,7 +113,7 @@ const AdminOrganizationsPage = () => {
     reset,
     setValue,
     watch,
-    formState: { errors, isSubmitting }
+    formState: { errors }
   } = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
     defaultValues: { 
@@ -82,32 +127,6 @@ const AdminOrganizationsPage = () => {
 
   const selectedCategoryValue = watch("categorySelection");
   const isCreatingCustomCategory = selectedCategoryValue === "NEW_CATEGORY";
-
-  const loadDataPipeline = async () => {
-    setLoading(true);
-    try {
-      const [orgsData, categoriesData] = await Promise.all([
-        organizationApi.getAll(),
-        categoryApi.getAll ? await categoryApi.getAll() : [] 
-      ]);
-      
-      const sortedOrgs = [...orgsData].sort((a, b) => b.id.localeCompare(a.id));
-      setOrganizations(sortedOrgs);
-      setExistingCategories(categoriesData || []);
-    } catch (error) {
-      console.error("Failed to compile layout data dependencies", error);
-    }
-    finally{
-      setLoading(false);
-    }
-  };
-
-  
-
-
-  useEffect(() => {
-    loadDataPipeline();
-  }, []);
 
   const handleEditClick = (org: Organization) => {
     setEditingId(org.id);
@@ -127,7 +146,6 @@ const AdminOrganizationsPage = () => {
   const resetForm = () => {
     setEditingId(null);
     setSubcategoriesList([]);
-    // setSubInput("");
     reset({ 
       name: "", 
       email: "", 
@@ -137,40 +155,22 @@ const AdminOrganizationsPage = () => {
     });
   };
 
-  // const addSubcategoryTag = () => {
-  //   if (!subInput.trim()) return;
-  //   if (subcategoriesList.includes(subInput.trim())) {
-  //     toast.error("Subcategory already added to this temporary list.");
-  //     return;
-  //   }
-  //   setSubcategoriesList([...subcategoriesList, subInput.trim()]);
-  //   setSubInput("");
-  // };
-
-  // const removeSubcategoryTag = (indexToRemove: number) => {
-  //   setSubcategoriesList(subcategoriesList.filter((_, idx) => idx !== indexToRemove));
-  // };
-
-  const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
-    if (isCreatingCustomCategory && !data.newCategoryName?.trim()) {
-      toast.error("Please provide a name for the new profile category.");
-      return;
-    }
-
-    const updatePayload = {
-      name: data.name,
-      contact_email: data.email,
-      contact_phone: data.phone
-    };
-    
-    const createPayload = {
-      name: data.name,
-      contact_email: data.email, 
-      contact_phone: data.phone  
-    };
-
-    try {
+  // Mutation for creating or updating organizations
+  const submitMutation = useMutation({
+    mutationFn: async ({ data, editingId }: { data: OrganizationFormData; editingId: string | null }) => {
       let activeCategoryId = isCreatingCustomCategory ? null : data.categorySelection;
+
+      const updatePayload = {
+        name: data.name,
+        contact_email: data.email,
+        contact_phone: data.phone
+      };
+
+      const createPayload = {
+        name: data.name,
+        contact_email: data.email, 
+        contact_phone: data.phone  
+      };
 
       if (editingId) {
         if (isCreatingCustomCategory && data.newCategoryName) {
@@ -190,7 +190,7 @@ const AdminOrganizationsPage = () => {
             );
           }
         }
-        toast.success("Organization updated successfully!");
+        return "UPDATE";
       } else {
         const newOrg = await organizationApi.create(createPayload);
         
@@ -209,18 +209,51 @@ const AdminOrganizationsPage = () => {
               )
             );
           }
-          toast.success("Organization configuration deployed successfully!");
+          return "DEPLOY_CONFIG";
         } else {
-          toast.success("Organization created successfully!");
+          return "CREATE";
         }
       }
+    },
+    onSuccess: (status) => {
+      if (status === "UPDATE") {
+        toast.success("Organization updated successfully!");
+      } else if (status === "DEPLOY_CONFIG") {
+        toast.success("Organization configuration deployed successfully!");
+      } else {
+        toast.success("Organization created successfully!");
+      }
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       resetForm();
-      loadDataPipeline();
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("Pipeline submission error:", error);
       toast.error("Action failed. Check your network configuration or constraints.");
     }
+  });
+
+  const onSubmit: SubmitHandler<OrganizationFormData> = (data) => {
+    if (isCreatingCustomCategory && !data.newCategoryName?.trim()) {
+      toast.error("Please provide a name for the new profile category.");
+      return;
+    }
+    submitMutation.mutate({ data, editingId });
   };
+
+  // Mutation for deleting an organization
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await organizationApi.delete(id);
+    },
+    onSuccess: () => {
+      toast.success("Deactivated successfully");
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    },
+    onError: () => {
+      toast.error("Failed to deactivate");
+    }
+  });
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -236,15 +269,9 @@ const AdminOrganizationsPage = () => {
         </p>
         <div className="flex gap-2">
           <button
-            onClick={async () => {
+            onClick={() => {
               toast.dismiss(t.id);
-              try {
-                await organizationApi.delete(id);
-                toast.success("Deactivated successfully");
-                loadDataPipeline();
-              } catch {
-                toast.error("Failed to deactivate");
-              }
+              deleteMutation.mutate(id);
             }}
             className="flex-1 bg-secondary text-white py-2 rounded-lg text-[10px] font-black uppercase tracking-tighter"
           >
@@ -268,6 +295,13 @@ const AdminOrganizationsPage = () => {
         border: '1px solid rgba(0,0,0,0.05)',
         boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
       }
+    });
+  };
+
+  const setOrganizationsList = (updater: React.SetStateAction<Organization[]>) => {
+    queryClient.setQueryData(['organizations'], (old: Organization[] | undefined) => {
+      if (!old) return [];
+      return typeof updater === 'function' ? updater(old) : updater;
     });
   };
 
@@ -307,38 +341,6 @@ const AdminOrganizationsPage = () => {
         );
       }
     },
-    // {
-    //   header: 'Category',
-    //   key: 'classification',
-    //   render: (item: Organization) => {
-    //   // Cross-reference with existingCategories if item.category?.name is missing
-    //   const matchedCategory = existingCategories.find(
-    //     (cat) => cat.id === (item as any).category_id || cat.id === item.category?.id
-    //   );
-    //   const categoryName = item.category?.name || matchedCategory?.name;
-
-    //   return (
-    //     <div className="flex flex-col gap-1.5 max-w-xs py-1">
-    //       {categoryName ? (
-    //         <span className="text-[11px] font-black text-secondary uppercase tracking-wider flex items-center gap-1">
-    //           <Layers size={11} className="text-[#A07156]" /> {categoryName}
-    //         </span>
-    //       ) : (
-    //         <span className="text-[11px] text-neutral-400 italic">No category linked</span>
-    //       )}
-    //       {item.subcategories && item.subcategories.length > 0 && (
-    //         <div className="flex flex-wrap gap-1">
-    //           {item.subcategories.map((sub) => (
-    //             <span key={sub.id} className="bg-primary/30 text-[#A07156] font-bold text-[9px] px-1.5 py-0.5 rounded-md uppercase tracking-tight">
-    //               {sub.name}
-    //             </span>
-    //           ))}
-    //         </div>
-    //       )}
-    //     </div>
-    //   );
-    // }
-    // },
     { 
       header: 'Status', 
       key: 'is_active',
@@ -396,114 +398,112 @@ const AdminOrganizationsPage = () => {
         </div>
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Balanced 2-Column Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Organization Name Input */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Organization Name</label>
-            <input 
-              {...register("name")}
-              type="text" 
-              placeholder="Company or Bureau Name"
-              className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.name ? 'ring-red-500' : 'ring-secondary/10'}`}
-            />
-            {errors.name && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.name.message}</p>}
-          </div>
-          
-          {/* Official Email Input */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Official Email</label>
-            <input 
-              {...register("email")}
-              type="email" 
-              placeholder="official@domain.com"
-              className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.email ? 'ring-red-500' : 'ring-secondary/10'}`}
-            />
-            {errors.email && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.email.message}</p>}
+          {/* Balanced 2-Column Grid Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Organization Name Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Organization Name</label>
+              <input 
+                {...register("name")}
+                type="text" 
+                placeholder="Company or Bureau Name"
+                className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.name ? 'ring-red-500' : 'ring-secondary/10'}`}
+              />
+              {errors.name && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.name.message}</p>}
+            </div>
+            
+            {/* Official Email Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Official Email</label>
+              <input 
+                {...register("email")}
+                type="email" 
+                placeholder="official@domain.com"
+                className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.email ? 'ring-red-500' : 'ring-secondary/10'}`}
+              />
+              {errors.email && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.email.message}</p>}
+            </div>
+
+            {/* Phone Number Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Phone Number</label>
+              <input 
+                {...register("phone")}
+                type="text" 
+                placeholder="e.g. 0911223344"
+                className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.phone ? 'ring-red-500' : 'ring-secondary/10'}`}
+              />
+              {errors.phone && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.phone.message}</p>}
+            </div>
+
+            {/* Core Category Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Issue Category</label>
+              <select
+                {...register("categorySelection")}
+                className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.categorySelection ? 'ring-red-500' : 'ring-secondary/10'}`}
+              >
+                <option value="">-- Choose Category --</option>
+                <option value="NEW_CATEGORY" className="text-secondary font-bold">+ Create New Category</option>
+                {existingCategories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              {errors.categorySelection && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.categorySelection.message}</p>}
+            </div>
           </div>
 
-          {/* Phone Number Input */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Phone Number</label>
-            <input 
-              {...register("phone")}
-              type="text" 
-              placeholder="e.g. 0911223344"
-              className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.phone ? 'ring-red-500' : 'ring-secondary/10'}`}
-            />
-            {errors.phone && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.phone.message}</p>}
-          </div>
+          {/* Conditional Custom Category Input (Appears only if "+ Create New Category" is selected) */}
+          {isCreatingCustomCategory && (
+            <div className="p-5 bg-amber-50/40 rounded-2xl border border-amber-200/50 space-y-2 animate-fadeIn max-w-md">
+              <label className="text-[10px] font-black tracking-widest text-amber-800 uppercase ml-1">New Category Title</label>
+              <input 
+                {...register("newCategoryName")}
+                type="text"
+                placeholder="e.g., Water Infrastructure & Plumbing Operations"
+                className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold border border-neutral-200 focus:outline-none focus:border-neutral-900 transition-colors"
+              />
+            </div>
+          )}
 
-          {/* Core Category Dropdown */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-1">Issue Category</label>
-            <select
-              {...register("categorySelection")}
-              className={`w-full bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${errors.categorySelection ? 'ring-red-500' : 'ring-secondary/10'}`}
+          {/* Form Action Button Submission Row */}
+          <div className="flex justify-end pt-2">
+            <button 
+              type="submit" 
+              disabled={submitMutation.isPending}
+              className="w-full md:w-auto bg-secondary text-primary md:px-8 py-3 rounded-xl font-black text-xs uppercase hover:opacity-90 transition-all shadow-lg shadow-secondary/10 tracking-wider disabled:opacity-50"
             >
-              <option value="">-- Choose Category --</option>
-              <option value="NEW_CATEGORY" className="text-secondary font-bold">+ Create New Category</option>
-              {existingCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            {errors.categorySelection && <p className="text-[10px] text-red-500 font-bold ml-2 uppercase">{errors.categorySelection.message}</p>}
+              {submitMutation.isPending ? "Processing..." : (editingId ? "Update Organization" : "Register Organization")}
+            </button>
           </div>
-        </div>
-
-        {/* Conditional Custom Category Input (Appears only if "+ Create New Category" is selected) */}
-        {isCreatingCustomCategory && (
-          <div className="p-5 bg-amber-50/40 rounded-2xl border border-amber-200/50 space-y-2 animate-fadeIn max-w-md">
-            <label className="text-[10px] font-black tracking-widest text-amber-800 uppercase ml-1">New Category Title</label>
-            <input 
-              {...register("newCategoryName")}
-              type="text"
-              placeholder="e.g., Water Infrastructure & Plumbing Operations"
-              className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold border border-neutral-200 focus:outline-none focus:border-neutral-900 transition-colors"
-            />
-          </div>
-        )}
-
-        {/* Form Action Button Submission Row */}
-        <div className="flex justify-end pt-2">
-          <button 
-            type="submit" 
-            disabled={isSubmitting}
-            className="w-full md:w-auto bg-secondary text-primary md:px-8 py-3 rounded-xl font-black text-xs uppercase hover:opacity-90 transition-all shadow-lg shadow-secondary/10 tracking-wider disabled:opacity-50"
-          >
-            {isSubmitting ? "Processing..." : (editingId ? "Update Organization" : "Register Organization")}
-          </button>
-        </div>
-      </form>
+        </form>
       </div>
 
       <div className="bg-white rounded-4xl md:rounded-[2.5rem] overflow-x-auto border border-secondary/5 shadow-sm">
-      {loading ? (
-        <div className="flex justify-center items-center w-full animate-in fade-in duration-300">
-          <ThemeLoader size= "lg"/>
-        </div>
-      ) : organizations.length === 0 ? (
-        <div className="p-10 text-center text-neutral-500 font-medium">
-          No records found
-        </div>
-      ) : (
-        <Table 
-          columns={columns} 
-          data={organizations}
-          onRowClick={handleRowClick}  
-        />
-      )}
+        {isOrgsLoading ? (
+          <OrganizationTableSkeleton />
+        ) : organizations.length === 0 ? (
+          <div className="p-10 text-center text-neutral-500 font-medium">
+            No records found
+          </div>
+        ) : (
+          <Table 
+            columns={columns} 
+            data={organizations}
+            onRowClick={handleRowClick}  
+          />
+        )}
 
-      <OrganizationDetailModal 
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedOrg(null);
-        }}
-        organization={selectedOrg}
-        setOrganizationsList={setOrganizations}
-      />
-    </div>
+        <OrganizationDetailModal 
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedOrg(null);
+          }}
+          organization={selectedOrg}
+          setOrganizationsList={setOrganizationsList}
+        />
+      </div>
     </div>
   );
 };

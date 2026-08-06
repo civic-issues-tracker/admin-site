@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   IoSearchOutline, 
   IoFilterOutline, 
@@ -16,9 +16,9 @@ import Table from './../../../components/ui/Table';
 import UserDetailDrawer from './UserDetailDrawer';
 import toast from 'react-hot-toast';
 import { privateApi } from '../../auth/services/authService'; 
-import ThemeLoader from '../../../components/ui/ThemeLoader';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-// Typings mapped exactly to your backend JSON scheme response
+// Typings mapped exactly to backend JSON schema response
 export interface BackendUser {
   id: string;
   full_name: string;
@@ -39,52 +39,98 @@ const getStatusStyle = (isActive: boolean) => {
     : "bg-rose-500/10 text-rose-600 border-rose-500/20";
 };
 
+// Skeleton Loader for Table Rows
+const UserTableSkeleton = () => (
+  <div className="w-full bg-white rounded-[2.5rem] overflow-hidden border border-secondary/5 shadow-sm animate-pulse p-6 space-y-4">
+    <div className="h-8 bg-secondary/10 rounded-xl w-full mb-6" />
+    {[...Array(5)].map((_, idx) => (
+      <div key={idx} className="flex items-center justify-between gap-4 py-3 border-b border-secondary/5">
+        <div className="flex items-center gap-3 w-1/4">
+          <div className="w-9 h-9 rounded-xl bg-secondary/10" />
+          <div className="space-y-2 flex-1">
+            <div className="h-4 bg-secondary/10 rounded w-3/4" />
+            <div className="h-3 bg-secondary/10 rounded w-1/2" />
+          </div>
+        </div>
+        <div className="h-4 bg-secondary/10 rounded w-1/4" />
+        <div className="h-6 bg-secondary/10 rounded-md w-16" />
+        <div className="h-6 bg-secondary/10 rounded-full w-16" />
+        <div className="h-4 bg-secondary/10 rounded w-20" />
+      </div>
+    ))}
+  </div>
+);
+
+// Fetcher Function
+const fetchUsersApi = async (searchVal: string, roleVal: string) => {
+  const queryParams = new URLSearchParams();
+  
+  if (searchVal.trim()) {
+    queryParams.append('search', searchVal.trim());
+  }
+  
+  if (roleVal === "User") queryParams.append('role', 'resident');
+  else if (roleVal === "Organization") queryParams.append('role', 'organization_admin');
+  else if (roleVal === "Admin") queryParams.append('role', 'system_admin');
+
+  const url = `/auth/admin/users/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const response = await privateApi.get(url);
+  const freshData = response.data.results || response.data;
+  
+  return Array.isArray(freshData) ? freshData : [];
+};
+
 const AdminUsersPage = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [users, setUsers] = useState<BackendUser[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<BackendUser | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // --- INTEGRATED DYNAMIC BACKEND QUERY FETCH ---
-  const fetchUsers = useCallback(async (searchVal: string, roleVal: string) => {
-    setIsLoading(true);
-    try {
-      // Build parameters natively using standard query variables from documentation
-      const queryParams = new URLSearchParams();
-      
-      if (searchVal.trim()) {
-        queryParams.append('search', searchVal.trim());
-      }
-      
-      // Convert UI filter label selections cleanly to backend database role strings
-      if (roleVal === "User") queryParams.append('role', 'resident');
-      else if (roleVal === "Organization") queryParams.append('role', 'organization_admin');
-      else if (roleVal === "Admin") queryParams.append('role', 'system_admin');
-
-      const url = `/auth/admin/users/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await privateApi.get(url);
-      const freshData = response.data.results || response.data;
-      
-      setUsers(Array.isArray(freshData) ? freshData : []);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to fetch registered system accounts.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // --- DEBOUNCED SEARCH EFFECT AND IMMEDIATE DROPDOWN FILTERING ---
+  // Custom 400ms Debounce Effect for Search Query Input
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      fetchUsers(searchTerm, roleFilter);
-    }, 400); // 400ms delay to protect the backend database from layout flooding
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, roleFilter, fetchUsers]);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // TanStack Query for dynamic fetching & caching
+  const { 
+    data: users = [], 
+    isLoading 
+  } = useQuery<BackendUser[]>({
+    queryKey: ['users', debouncedSearchTerm, roleFilter],
+    queryFn: () => fetchUsersApi(debouncedSearchTerm, roleFilter),
+    staleTime: 10 * 60 * 1000, // 10 Minutes
+    gcTime: 15 * 60 * 1000,    // 15 Minutes
+  });
+
+  // Block / Unblock Mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ id, currentActiveStatus }: { id: string; currentActiveStatus: boolean }) => {
+      if (currentActiveStatus) {
+        await privateApi.delete(`/auth/admin/users/${id}/block/`);
+      } else {
+        await privateApi.post(`/auth/admin/users/${id}/unblock/`, {});
+      }
+      return currentActiveStatus;
+    },
+    onSuccess: (wasActive) => {
+      toast.success(wasActive ? "User account suspended successfully." : "User account reactivated successfully.");
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error: unknown) => {
+      const apiError = (error as { response?: { data?: { error?: string } } }).response?.data?.error || "Failed to update security status.";
+      toast.error(apiError);
+    },
+    onSettled: () => {
+      setActiveMenu(null);
+    }
+  });
 
   const handleViewProfile = (user: BackendUser) => {
     setSelectedUser(user);
@@ -92,26 +138,8 @@ const AdminUsersPage = () => {
     setActiveMenu(null); 
   };
 
-  // --- BLOCK / UNBLOCK DATA HANDLERS ---
-  const handleToggleStatus = async (id: string, currentActiveStatus: boolean) => {
-    try {
-      if (currentActiveStatus) {
-        // DELETE request to soft-block a user profile
-        await privateApi.delete(`/auth/admin/users/${id}/block/`);
-        toast.success("User account suspended successfully.");
-      } else {
-        // POST request to unblock a user profile
-        await privateApi.post(`/auth/admin/users/${id}/unblock/`, {});
-        toast.success("User account reactivated successfully.");
-      }
-      // Re-fetch parameters immediately with ongoing values
-      fetchUsers(searchTerm, roleFilter);
-    } catch (error: unknown) {
-      const apiError = (error as { response?: { data?: { error?: string } } }).response?.data?.error || "Failed to update security status.";
-      toast.error(apiError);
-    } finally {
-      setActiveMenu(null);
-    }
+  const handleToggleStatus = (id: string, currentActiveStatus: boolean) => {
+    toggleStatusMutation.mutate({ id, currentActiveStatus });
   };
 
   // --- COLUMN DEFINITIONS ---
@@ -220,6 +248,7 @@ const AdminUsersPage = () => {
               
               <button 
                 onClick={() => handleToggleStatus(user.id, user.is_active)}
+                disabled={toggleStatusMutation.isPending}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold transition-colors ${
                   user.is_active ? 'text-orange-500 hover:bg-orange-500/5' : 'text-emerald-600 hover:bg-emerald-500/5'
                 }`}
@@ -287,13 +316,11 @@ const AdminUsersPage = () => {
 
       {/* Table Section */}
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center text-sm font-medium text-secondary/40">
-          <ThemeLoader size="md" />         
-        </div>
+        <UserTableSkeleton />
       ) : (
         <Table 
           columns={columns} 
-          data={users} // Directly passing pristine server data response here
+          data={users}
           onRowClick={(user) => handleViewProfile(user)}
         />
       )}

@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Table from '../../../components/ui/Table';
 import { categoryApi } from '../../../features/auth/services/CategorySevice';
 import { subcategoryApi } from '../../../features/auth/services/subcategoryService'; 
-import {  Trash2, Edit,  X, AlertTriangle } from 'lucide-react';
+import { Trash2, Edit, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import ThemeLoader from '../../../components/ui/ThemeLoader';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Validation Schemas
 const categorySchema = z.object({
@@ -33,11 +33,40 @@ interface Category {
   subcategories?: Subcategory[]; 
 }
 
+// Skeleton Loader for Table Rows
+const CategoryTableSkeleton = () => (
+  <div className="w-full bg-white rounded-[2.5rem] overflow-hidden border border-secondary/5 shadow-sm animate-pulse p-6 space-y-4">
+    <div className="h-8 bg-secondary/10 rounded-xl w-full mb-6" />
+    {[...Array(5)].map((_, idx) => (
+      <div key={idx} className="flex items-center justify-between gap-4 py-3 border-b border-secondary/5">
+        <div className="h-4 bg-secondary/10 rounded w-1/4" />
+        <div className="h-6 bg-secondary/10 rounded-full w-1/2" />
+        <div className="h-4 bg-secondary/10 rounded w-12" />
+      </div>
+    ))}
+  </div>
+);
+
+const fetchCategoriesPipeline = async () => {
+  const data = await categoryApi.getAll();
+  return [...data].reverse();
+};
+
 const AdminCategoriesPage: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // TanStack Query for categories list with cache config
+  const { 
+    data: categories = [], 
+    isLoading 
+  } = useQuery<Category[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategoriesPipeline,
+    staleTime: 10 * 60 * 1000, // 10 minutes cache freshness
+    gcTime: 15 * 60 * 1000,    // 15 minutes garbage collection time
+  });
 
   const { 
     register: regCat, 
@@ -59,29 +88,75 @@ const AdminCategoriesPage: React.FC = () => {
     resolver: zodResolver(subcategorySchema)
   });
 
-  const loadData = async () => {
-    try {
-      const data = await categoryApi.getAll();
-      setCategories([...data].reverse());
-    } catch (error) {
-      console.error("Failed to load data", error);
-    }
-  };
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const data = await categoryApi.getAll();
-        setCategories(data);
-      } catch (error) {
-        console.error("Failed to load data", error);
-      } finally {
-        setLoading(false);
+  // --- MUTATIONS ---
+  
+  // Category Create/Update Mutation
+  const categoryMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string | null; name: string }) => {
+      if (id) {
+        return await categoryApi.update(id, name);
+      } else {
+        return await categoryApi.create(name);
       }
-    };
-    load();
-  }, []);
+    },
+    onSuccess: (_, variables) => {
+      toast.success(variables.id ? "Category updated!" : "Category added!");
+      setEditingId(null);
+      resetCat();
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: () => {
+      toast.error("Failed to save category.");
+    }
+  });
+
+  // Category Delete Mutation
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await categoryApi.delete(id);
+    },
+    onSuccess: () => {
+      toast.success("Category deleted");
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: () => {
+      toast.error("Failed to delete");
+    }
+  });
+
+  // Subcategory Create/Update Mutation
+  const subcategoryMutation = useMutation({
+    mutationFn: async ({ id, name, category_id }: { id: string | null; name: string; category_id: string }) => {
+      if (id) {
+        return await subcategoryApi.update(id, name);
+      } else {
+        return await subcategoryApi.create({ name, category_id });
+      }
+    },
+    onSuccess: (_, variables) => {
+      toast.success(variables.id ? "Subcategory updated!" : "Subcategory created!");
+      setEditingSubId(null);
+      resetSub();
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: () => {
+      toast.error("Action failed.");
+    }
+  });
+
+  // Subcategory Delete Mutation
+  const deleteSubcategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await subcategoryApi.delete(id);
+    },
+    onSuccess: () => {
+      toast.success("Subcategory removed");
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: () => {
+      toast.error("Failed to remove");
+    }
+  });
 
   // --- CATEGORY ACTIONS ---
   const handleEditClick = (category: Category) => {
@@ -105,13 +180,9 @@ const AdminCategoriesPage: React.FC = () => {
         <p className="text-[10px] text-secondary/60 uppercase font-black tracking-widest">This will remove all linked subcategories.</p>
         <div className="flex gap-2">
           <button
-            onClick={async () => {
+            onClick={() => {
               toast.dismiss(t.id);
-              try {
-                await categoryApi.delete(id);
-                toast.success("Category deleted");
-                loadData();
-              } catch { toast.error("Failed to delete"); }
+              deleteCategoryMutation.mutate(id);
             }}
             className="flex-1 bg-secondary text-white py-2 rounded-lg text-[10px] font-black uppercase"
           >
@@ -123,19 +194,8 @@ const AdminCategoriesPage: React.FC = () => {
     ), { position: 'top-center' });
   };
 
-  const onCategorySubmit = async (data: CategoryFormData) => {
-    try {
-      if (editingId) {
-        await categoryApi.update(editingId, data.name);
-        toast.success("Category updated!");
-      } else {
-        await categoryApi.create(data.name);
-        toast.success("Category added!");
-      }
-      setEditingId(null);
-      resetCat();
-      loadData();
-    } catch { toast.error("Failed to save category."); }
+  const onCategorySubmit = (data: CategoryFormData) => {
+    categoryMutation.mutate({ id: editingId, name: data.name });
   };
 
   // --- SUBCATEGORY ACTIONS ---
@@ -160,13 +220,9 @@ const AdminCategoriesPage: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={async () => {
+            onClick={() => {
               toast.dismiss(t.id);
-              try {
-                await subcategoryApi.delete(id);
-                toast.success("Subcategory removed");
-                loadData();
-              } catch { toast.error("Failed to remove"); }
+              deleteSubcategoryMutation.mutate(id);
             }}
             className="flex-1 bg-red-500 text-white py-2 rounded-lg text-[10px] font-black uppercase"
           >
@@ -178,19 +234,8 @@ const AdminCategoriesPage: React.FC = () => {
     ), { position: 'top-center' });
   };
 
-  const onSubcategorySubmit = async (data: SubcategoryFormData) => {
-    try {
-      if (editingSubId) {
-        await subcategoryApi.update(editingSubId, data.name);
-        toast.success("Subcategory updated!");
-      } else {
-        await subcategoryApi.create({ name: data.name, category_id: data.category_id });
-        toast.success("Subcategory created!");
-      }
-      setEditingSubId(null);
-      resetSub();
-      loadData(); 
-    } catch { toast.error("Action failed."); }
+  const onSubcategorySubmit = (data: SubcategoryFormData) => {
+    subcategoryMutation.mutate({ id: editingSubId, name: data.name, category_id: data.category_id });
   };
 
   const columns = [
@@ -254,8 +299,12 @@ const AdminCategoriesPage: React.FC = () => {
                 placeholder="Category Name"
                 className={`flex-1 bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${catErrors.name ? 'ring-red-500' : 'ring-secondary/10'}`}
               />
-              <button type="submit" className="bg-secondary text-primary px-6 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:opacity-90">
-                {editingId ? "Update" : "Add"}
+              <button 
+                type="submit" 
+                disabled={categoryMutation.isPending}
+                className="bg-secondary text-primary px-6 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+              >
+                {categoryMutation.isPending ? "Processing..." : (editingId ? "Update" : "Add")}
               </button>
               {editingId && <button onClick={cancelEdit} className="p-3 bg-red-100 text-red-500 rounded-xl hover:bg-red-200"><X size={16}/></button>}
             </div>
@@ -284,8 +333,12 @@ const AdminCategoriesPage: React.FC = () => {
                 placeholder="Subcategory Name"
                 className={`flex-1 w-2xs bg-primary/20 rounded-xl px-4 py-3 text-sm font-bold border-none outline-none focus:ring-2 ${subErrors.name ? 'ring-red-500' : 'ring-secondary/10'}`}
               />
-              <button type="submit" className="bg-secondary text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2">
-                {editingSubId ? "Update" : "Create"} 
+              <button 
+                type="submit" 
+                disabled={subcategoryMutation.isPending}
+                className="bg-secondary text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {subcategoryMutation.isPending ? "Processing..." : (editingSubId ? "Update" : "Create")} 
               </button>
               {editingSubId && <button onClick={cancelSubEdit} className="p-3 bg-red-100 text-red-500 rounded-xl hover:bg-red-200"><X size={16}/></button>}
             </div>
@@ -294,18 +347,16 @@ const AdminCategoriesPage: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] overflow-hidden border border-secondary/5 shadow-sm">
-      {loading ? (
-        <div className="p-10 text-center text-neutral-500 font-medium">
-          <ThemeLoader size= "lg"/>
-        </div>
-      ) : categories.length === 0 ? (
-        <div className="p-10 text-center text-neutral-500 font-medium">
-          No records found
-        </div>
-      ) : (
-        <Table columns={columns} data={categories} />
-      )}
-    </div>
+        {isLoading ? (
+          <CategoryTableSkeleton />
+        ) : categories.length === 0 ? (
+          <div className="p-10 text-center text-neutral-500 font-medium">
+            No records found
+          </div>
+        ) : (
+          <Table columns={columns} data={categories} />
+        )}
+      </div>
     </div>
   );
 };

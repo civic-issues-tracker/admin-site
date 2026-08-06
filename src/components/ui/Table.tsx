@@ -34,7 +34,7 @@ const Table = <T extends { id?: string | number }>({
               {columns.map((col, i) => (
                 <th 
                   key={i} 
-                  className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-secondary/40"
+                  className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-secondary"
                 >
                   {col.header}
                 </th>
@@ -63,7 +63,7 @@ const Table = <T extends { id?: string | number }>({
                   `}
                 >
                   {columns.map((col, colIndex) => (
-                    <td key={colIndex} className="px-8 py-5 text-sm font-bold text-secondary/80">
+                    <td key={colIndex} className="px-8 py-5 text-sm font-bold text-secondary">
                       {col.render ? (
                         col.render(item)
                       ) : (

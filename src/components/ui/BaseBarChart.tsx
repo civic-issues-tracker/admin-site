@@ -35,7 +35,7 @@ const BaseBarChart: React.FC<BaseBarChartProps> = ({ data, title, dataKeys }) =>
               dataKey="name" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#2C0901', fontSize: 10, fontWeight: '700' }} 
+              tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontWeight: '700' }} 
               dy={5}
             />
             
@@ -44,7 +44,7 @@ const BaseBarChart: React.FC<BaseBarChartProps> = ({ data, title, dataKeys }) =>
               axisLine={false} 
               tickLine={false} 
               width={28}
-              tick={{ fill: '#2C0901', fontSize: 10, fontWeight: '600', opacity: 0.5 }} 
+              tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontWeight: '600', opacity: 0.5 }} 
             />
             
             {/* Custom high-fidelity styled Tooltip matching your dashboard layout aesthetics */}
@@ -53,7 +53,7 @@ const BaseBarChart: React.FC<BaseBarChartProps> = ({ data, title, dataKeys }) =>
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-[#2C0901] text-white p-3 rounded-xl shadow-xl border border-[#E5D3B3]/10 flex flex-col gap-1 text-[11px] font-sans pointer-events-none">
+                    <div className="bg-secondary text-white p-3 rounded-xl shadow-xl border border-[#E5D3B3]/10 flex flex-col gap-1 text-[11px] font-sans pointer-events-none">
                       <p className="font-black opacity-60 uppercase text-[9px] tracking-wider mb-0.5">
                         {payload[0].payload.name}
                       </p>
@@ -61,7 +61,7 @@ const BaseBarChart: React.FC<BaseBarChartProps> = ({ data, title, dataKeys }) =>
                         <div key={index} className="flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
                           <span className="font-medium text-neutral-300">{p.name}:</span>
-                          <span className="font-black text-white">{Number(p.value).toLocaleString()}</span>
+                          <span className="font-black text-primary">{Number(p.value).toLocaleString()}</span>
                         </div>
                       ))}
                     </div>

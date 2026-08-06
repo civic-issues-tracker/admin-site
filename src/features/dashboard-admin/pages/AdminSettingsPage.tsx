@@ -29,6 +29,7 @@ const AdminSettingsPage = () => {
       toast.success("System parameters updated successfully.");
     } catch (error) {
       toast.error("Failed to persist general configurations.");
+      console.error("Error saving general settings:", error);
     } finally {
       setIsSaving(false);
     }

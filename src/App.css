@@ -11,15 +11,15 @@
 }
 
 :root {
-  --color-primary: #FFF4E8;
-  --color-secondary: #2C0901;
+  --color-primary: #f7f7f7;
+  --color-secondary: #906b33;
   --color-tertiary: #FFFFFF;
   --font-main: 'Inter', sans-serif;
   --font-secondary: 'Plus Jakarta Sans', sans-serif;
 }
 
 #root {
-  background-color: #FDFBF7;
+  background-color: var(--color-primary);
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;

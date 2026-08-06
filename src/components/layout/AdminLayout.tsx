@@ -5,10 +5,10 @@ import { Outlet } from 'react-router-dom';
 
 const AdminLayout: React.FC = () => {
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#FDFBF7]"> 
+    <div className="flex flex-col md:flex-row min-h-screen bg-primary"> 
       <SidebarAdmin />
       
-      <main className="flex-1 flex flex-col w-full overflow-x-hidden bg-[#FDFBF7]">
+      <main className="flex-1 flex flex-col w-full overflow-x-hidden bg-primary">
         <AdminHeader onOpenIssue={() => console.log("Header clicked")} />
         <div className="p-4 md:p-8">
           <Outlet /> 

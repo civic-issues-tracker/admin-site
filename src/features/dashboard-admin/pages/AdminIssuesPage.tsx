@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   IoSearchOutline, 
   IoFilterOutline, 
@@ -9,116 +9,126 @@ import Table from './../../../components/ui/Table';
 import { privateApi } from '../../auth/services/authService';
 import toast from 'react-hot-toast';
 import { IssueDetailModal } from './IssueDetailModal';
+import { useInfiniteQuery } from '@tanstack/react-query';
+
+const PAGE_SIZE = 10;
+
+const fetchIssuesApi = async ({ pageParam = 0, queryKey }: { pageParam?: number; queryKey: any[] }) => {
+  const searchTerm = queryKey[1];
+  const statusFilter = queryKey[2];
+  
+  const queryParams = new URLSearchParams();
+  if (searchTerm.trim()) {
+    queryParams.append('search', searchTerm.trim());
+  }
+  if (statusFilter !== "All") {
+    queryParams.append('status', statusFilter.toLowerCase());
+  }
+
+  queryParams.append('limit', PAGE_SIZE.toString());
+  queryParams.append('offset', pageParam.toString());
+
+  const url = `/issues/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const response = await privateApi.get(url);
+  
+  const freshData = response.data.results || response.data;
+  const dataArray = Array.isArray(freshData) ? freshData : [];
+
+  return {
+    results: dataArray,
+    nextOffset: dataArray.length === PAGE_SIZE ? pageParam + PAGE_SIZE : undefined,
+  };
+};
+
+// Skeleton Table Loader Component
+const AdminTableSkeleton: React.FC = () => {
+  return (
+    <div className="w-full bg-white rounded-2xl border border-secondary/5 overflow-hidden shadow-sm animate-pulse">
+      <div className="bg-secondary/5 h-12 w-full border-b border-secondary/5" />
+      <div className="divide-y divide-secondary/5">
+        {[...Array(6)].map((_, idx) => (
+          <div key={idx} className="p-4 flex items-center justify-between gap-4">
+            <div className="h-4 bg-secondary/10 rounded w-16" />
+            <div className="flex flex-col gap-1 w-32">
+              <div className="h-4 bg-secondary/10 rounded w-28" />
+              <div className="h-2 bg-secondary/10 rounded w-16" />
+            </div>
+            <div className="flex flex-col gap-1 w-36">
+              <div className="h-4 bg-secondary/10 rounded w-24" />
+              <div className="h-2 bg-secondary/10 rounded w-20" />
+            </div>
+            <div className="h-4 bg-secondary/10 rounded w-24" />
+            <div className="h-4 bg-secondary/10 rounded w-28" />
+            <div className="h-6 bg-secondary/10 rounded-xl w-20" />
+            <div className="h-4 bg-secondary/10 rounded w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const AdminIssuesPage: React.FC = () => {
-  const [issues, setIssues] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [loading, setLoading] = useState(true);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // --- STRATEGY 3: SLICE OFFSET CONFIGURATION ---
-  // const [currentOffset, setCurrentOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadMoreLoading, setIsLoadMoreLoading] = useState(false);
-  const PAGE_SIZE = 10;
+  const [localOverrides, setLocalOverrides] = useState<Record<string, any>>({});
 
-  const abortControllerRef = useRef<AbortController | null>(null);
-  
   // Ref anchor to observe the bottom boundary element of the page
   const bottomBoundaryRef = useRef<HTMLDivElement | null>(null);
 
-  // --- OPTIMIZED CHUNK FETCHING ---
-  const fetchIssues = useCallback(async (
-    searchVal: string, 
-    statusVal: string, 
-    offsetVal: number, 
-    appendMode = false,
-    signal?: AbortSignal
-  ) => {
-    if (!appendMode) setLoading(true);
-    else setIsLoadMoreLoading(true);
-
-    try {
-      const queryParams = new URLSearchParams();
-
-      if (searchVal.trim()) {
-        queryParams.append('search', searchVal.trim());
-      }
-
-      if (statusVal !== "All") {
-        queryParams.append('status', statusVal.toLowerCase());
-      }
-
-      queryParams.append('limit', PAGE_SIZE.toString());
-      queryParams.append('offset', offsetVal.toString());
-
-      const url = `/issues/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await privateApi.get(url, { signal });
-      
-      const freshData = response.data.results || response.data;
-      const dataArray = Array.isArray(freshData) ? freshData : [];
-
-      if (appendMode) {
-        setIssues((prevIssues) => [...prevIssues, ...dataArray]);
-        setHasMore(dataArray.length === PAGE_SIZE);
-      } else {
-        setIssues(dataArray);
-        setHasMore(dataArray.length === PAGE_SIZE);
-      }
-    } catch (error: any) {
-      if (error.name === 'CanceledError' || error.message === 'canceled') {
-        return; 
-      }
-      console.error("Error fetching issues:", error);
-      toast.error("Failed to load reported issues."); 
-    } finally {
-      if (!signal?.aborted) {
-        setLoading(false);
-        setIsLoadMoreLoading(false);
-      }
-    }
-  }, []);
-
-  // --- EFFECT FOR SEARCH / FILTER PARAMETER CHANGES ---
+  // Debounce search input changes
   useEffect(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // TanStack Infinite Query hook for persistence and caching
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  } = useInfiniteQuery({
+    queryKey: ['adminIssues', debouncedSearch, statusFilter],
+    queryFn: fetchIssuesApi,
+    getNextPageParam: (lastPage) => lastPage.nextOffset,
+    initialPageParam: 0,
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 15,    
+  });
+
+  // Derive flat issue list directly from Query cache and apply local overrides if updated
+  const localIssues = useMemo(() => {
+    if (!data) return [];
+    const flattened = data.pages.flatMap((page) => page.results);
+    return flattened.map((issue) => localOverrides[issue.id] || issue);
+  }, [data, localOverrides]);
+
+  useEffect(() => {
+    if (isError) {
+      toast.error("Failed to load reported issues.");
     }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const delayDebounceFn = setTimeout(() => {
-      // setCurrentOffset(0); 
-      fetchIssues(searchTerm, statusFilter, 0, false, controller.signal);
-    }, 200);
-
-    return () => {
-      clearTimeout(delayDebounceFn);
-      controller.abort();
-    };
-  }, [searchTerm, statusFilter, fetchIssues]);
+  }, [isError]);
 
   // --- AUTOMATIC INFINITE SCROLL OBSERVER ---
   useEffect(() => {
-    // If there is no more data to fetch, or we are already fetching, don't trigger anything
-    if (!hasMore || isLoadMoreLoading || loading) return;
+    if (!hasNextPage || isFetchingNextPage || isLoading) return;
 
     const currentObserverTarget = bottomBoundaryRef.current;
 
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
-        // Automatically move offset forward and fetch data chunk
-        // setCurrentOffset((prevOffset) => {
-        //   const nextOffset = prevOffset + PAGE_SIZE;
-        //   fetchIssues(searchTerm, statusFilter, nextOffset, true);
-        //   return nextOffset;
-        // });
+        fetchNextPage();
       }
     }, {
-      rootMargin: '200px', // Pre-fetch data 200px before user actually reaches the absolute bottom
+      rootMargin: '200px',
     });
 
     if (currentObserverTarget) {
@@ -130,46 +140,19 @@ const AdminIssuesPage: React.FC = () => {
         observer.unobserve(currentObserverTarget);
       }
     };
-  }, [hasMore, isLoadMoreLoading, loading, searchTerm, statusFilter, fetchIssues]);
+  }, [hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
 
-  // HELPER FOR DETAILED RE-FETCH ACTIONS
-  // const refreshIssuesFeed = async (setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
-  //   try {
-  //     const queryParams = new URLSearchParams();
-  //     if (searchTerm.trim()) queryParams.append('search', searchTerm.trim());
-  //     if (statusFilter !== "All") queryParams.append('status', statusFilter.toLowerCase());
-      
-  //     queryParams.append('limit', (currentOffset + PAGE_SIZE).toString());
-  //     queryParams.append('offset', '0');
-
-  //     const url = `/issues/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  //     const response = await privateApi.get(url);
-  //     const freshData = response.data.results || response.data;
-  //     setIssues(Array.isArray(freshData) ? freshData : []);
-  //   } catch (error) {
-  //     console.error("Failed to re-fetch issues snapshot:", error);
-  //   }
-  // };
-
-  // FLAG REPORT HANDLER
-  // const handleFlagReport = async (issueId: string, currentNotes: string | null, setIssues: React.Dispatch<React.SetStateAction<any[]>>) => {
-  //   try {
-  //     const timeStamp = new Date().toLocaleString();
-  //     const updatedNotes = currentNotes 
-  //       ? `[FLAGGED on ${timeStamp}]\n${currentNotes}`
-  //       : `[FLAGGED on ${timeStamp}] User reported this issue as inappropriate.`;
-
-  //     await privateApi.patch(`/issues/${issueId}/`, {
-  //       internal_notes: updatedNotes
-  //     });
-
-  //     toast.success("Issue has been successfully flagged for admin review.");
-  //     await refreshIssuesFeed(setIssues);
-  //   } catch (error) {
-  //     console.error("Error flagging report:", error);
-  //     toast.error("Failed to flag the issue. Check permissions.");
-  //   }
-  // };
+  // Handler to update an issue's state inside the modal cleanly
+  const handleSetIssues = (action: React.SetStateAction<any[]>) => {
+    if (typeof action === 'function') {
+      const updatedList = action(localIssues);
+      const newOverrides: Record<string, any> = {};
+      updatedList.forEach((item) => {
+        newOverrides[item.id] = item;
+      });
+      setLocalOverrides((prev) => ({ ...prev, ...newOverrides }));
+    }
+  };
 
   const columns = [
     {
@@ -272,28 +255,6 @@ const AdminIssuesPage: React.FC = () => {
         );
       }
     },
-    // { 
-    //   header: 'Actions', 
-    //   key: 'actions',
-    //   render: (issue: any) => {
-    //     return (
-    //       <button
-    //         onClick={(e) => {
-    //           e.stopPropagation(); 
-    //           handleFlagReport(issue.id, issue.internal_notes, setIssues);
-    //           toast.success(`Issue ${issue.issue_number} flagged successfully.`);
-    //         }}
-    //         className="p-2 hover:bg-amber-500/5 text-amber-600 rounded-xl transition-all flex items-center gap-2 font-bold text-xs"
-    //         title="Flag Report"
-    //       >
-    //         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    //           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-    //         </svg>
-    //         <span>Flag Report</span>
-    //       </button>
-    //     );
-    //   }
-    // }
   ];
 
   return (
@@ -342,22 +303,24 @@ const AdminIssuesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Table  */}
-      <Table 
-        columns={columns} 
-        data={issues} 
-        isLoading={loading}
-        onRowClick={(issue) => {
-          setSelectedIssueId(issue.id);
-          setIsModalOpen(true);
-        }} 
-      />
+      {/* Table / Skeleton Loading State */}
+      {isLoading ? (
+        <AdminTableSkeleton />
+      ) : (
+        <Table 
+          columns={columns} 
+          data={localIssues} 
+          isLoading={false}
+          onRowClick={(issue) => {
+            setSelectedIssueId(issue.id);
+            setIsModalOpen(true);
+          }} 
+        />
+      )}
 
-      {/* INVISIBLY ANCHORED BOTTOM BOUNDARY TARGET Element
-        This div is targeted by IntersectionObserver to seamlessly trigger background queries.
-      */}
+      {/* INVISIBLY ANCHORED BOTTOM BOUNDARY TARGET Element */}
       <div ref={bottomBoundaryRef} className="h-10 w-full flex justify-center items-center mt-4">
-        {isLoadMoreLoading && (
+        {isFetchingNextPage && (
           <p className="text-[10px] uppercase font-black tracking-widest text-secondary/30 animate-pulse">
             Loading additional updates...
           </p>
@@ -368,8 +331,8 @@ const AdminIssuesPage: React.FC = () => {
         <IssueDetailModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          issue={issues.find((i) => i.id === selectedIssueId) || null}
-          setIssues={setIssues}
+          issue={localIssues.find((i) => i.id === selectedIssueId) || null}
+          setIssues={handleSetIssues}
         />
       )}
     </div>

@@ -140,35 +140,18 @@ const BasePieChart: React.FC<BasePieChartProps> = ({ data: overridingData }) => 
                   }}
                 />
               </div>
-              <span className="text-[10px] font-black text-[#2C0901]/80 tracking-tight font-sans whitespace-nowrap">
+              <span className="text-[10px] font-black text-secondary/80 tracking-tight font-sans whitespace-nowrap">
                 {item.name}
               </span>
             </div>
           ))}
         </div>
 
-        <div className="flex flex-col text-[8px] font-bold text-[#A06A50]/40 border-l border-[#E5D3B3]/40 pl-2.5 leading-none shrink-0">
+        <div className="flex flex-col text-[8px] font-bold text-secondary/40 border-l border-[#E5D3B3]/40 pl-2.5 leading-none shrink-0">
           <span>↖</span>
           <span>↙</span>
         </div>
       </div>
-
-      {/* API DATA CALL DOCUMENTATION (COMMENTED OUT REUSABLE BLOCK)
-      useEffect(() => {
-        if (overridingData) return;
-        
-        const loadInfrastructureMetrics = async () => {
-          try {
-            const res = await fetch("https://api.yourdomain.com/v1/metrics");
-            const dataPayload = await res.json();
-            setChartData(dataPayload.data);
-          } catch (err) {
-            console.error("API Fetch error:", err);
-          }
-        };
-        loadInfrastructureMetrics();
-      }, [overridingData]);
-      */}
 
     </div>
   );

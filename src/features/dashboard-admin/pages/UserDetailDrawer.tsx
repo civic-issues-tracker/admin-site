@@ -7,6 +7,7 @@ import {
 } from "react-icons/io5";
 
 interface UserDetailDrawerProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   user: any | null;
   isOpen: boolean;
   onClose: () => void;

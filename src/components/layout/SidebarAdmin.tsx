@@ -41,7 +41,7 @@ const SidebarAdmin: React.FC = () => {
       {/* Mobile Toggle Button */}
       <button 
         onClick={toggleSidebar}
-        className="lg:hidden fixed top-6 left-6 z-120 p-3 bg-[#5C4033] text-white rounded-xl shadow-lg"
+        className="lg:hidden fixed top-6 left-6 z-120 p-3 bg-secondary text-white rounded-xl shadow-lg"
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
@@ -57,7 +57,7 @@ const SidebarAdmin: React.FC = () => {
       {/* Sidebar Content */}
       <aside className={`
         fixed lg:sticky top-0 left-0 z-110
-        w-72 h-screen bg-[#5C4033] text-white flex flex-col py-10 
+        w-72 h-screen bg-secondary text-white flex flex-col py-10 
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         lg:rounded-r-[4rem]
