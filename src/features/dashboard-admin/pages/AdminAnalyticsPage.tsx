@@ -2,8 +2,8 @@
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import BaseBarChart from "../../../components/ui/BaseBarChart";
-import BasePieChart from "../../../components/ui/BasePieChart";
 import { privateApi } from "../../auth/services/authService";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 // Skeleton loading component
 const SkeletonPulse = ({ className = "" }: { className?: string }) => (
@@ -71,6 +71,10 @@ const AdminAnalyticsPage: React.FC = () => {
     () => analyticsPipeline?.subcityData ?? [],
     [analyticsPipeline?.subcityData]
   );
+  const rawIssues = useMemo(
+    () => analyticsPipeline?.rawIssues ?? [],
+    [analyticsPipeline?.rawIssues]
+  );
   const resolutionSpeed = useMemo(
     () => analyticsPipeline?.resolutionSpeed ?? [],
     [analyticsPipeline?.resolutionSpeed]
@@ -95,7 +99,7 @@ const AdminAnalyticsPage: React.FC = () => {
 
       const knownAddisSubcities = [
         "Bole", "Kirkos", "Arada", "Lideta", "Akaky Kaliti",
-        "Addis Ketema", "Nifas Silk-Lafto", "Gullele", "Yeka", "Kolfe Keranio", "Lemi Kura"
+        "Addis Ketema", "Nifas Silk-Lafto", "Gullele", "Yeka", "Kolfe Keranio", "Lemi Kura", "Bahir Dar"
       ];
 
       for (const part of parts) {
@@ -109,48 +113,68 @@ const AdminAnalyticsPage: React.FC = () => {
       return cleanPart.charAt(0).toUpperCase() + cleanPart.slice(1);
     };
 
-    // Dynamic Top 3 Subcity aggregation from live backend data
-    const subcityMap: Record<string, { total: number; accepted: number }> = {};
+    // Robust Subcity aggregation logic
+    const subcityMap: Record<string, { total: number; activeSubmitted: number }> = {};
 
+    // 1. Process API subcityData
     subcityData.forEach((item: any) => {
       const rawName = item.subcity || item.name || item.location || "Unknown Subcity";
       const name = normalizeSubcity(rawName);
-      const count = Number(item.total_issues ?? item.total ?? item.count ?? 0);
+      const count = Number(item.total_issues ?? item.total ?? item.count ?? item.issues_count ?? 0);
+      
       const breakdown = item.status_breakdown || {};
 
-      const inProgressCount = Number(breakdown.in_progress ?? breakdown.inProgress ?? 0);
-      const resolvedCount = Number(breakdown.resolved ?? breakdown.solved ?? 0);
-      const rejectedCount = Number(breakdown.rejected ?? 0);
-
-      const submittedCount = breakdown.submitted !== undefined
-        ? Number(breakdown.submitted)
-        : breakdown.pending !== undefined
-          ? Number(breakdown.pending)
-          : Math.max(0, count - (inProgressCount + resolvedCount + rejectedCount));
-
-      const acceptedCount = item.accepted ?? item.active ?? (count - submittedCount);
+      // eslint-disable-next-line no-useless-assignment
+      let submittedCount = 0;
+      if (breakdown.submitted !== undefined) submittedCount = Number(breakdown.submitted);
+      else if (breakdown.SUBMITTED !== undefined) submittedCount = Number(breakdown.SUBMITTED);
+      else if (breakdown.pending !== undefined) submittedCount = Number(breakdown.pending);
+      else if (breakdown.PENDING !== undefined) submittedCount = Number(breakdown.PENDING);
+      else if (item.active !== undefined) submittedCount = Number(item.active);
+      else if (item.active_issues !== undefined) submittedCount = Number(item.active_issues);
+      else if (item.submitted !== undefined) submittedCount = Number(item.submitted);
+      else submittedCount = count;
 
       if (!subcityMap[name]) {
-        subcityMap[name] = { total: 0, accepted: 0 };
+        subcityMap[name] = { total: 0, activeSubmitted: 0 };
       }
       subcityMap[name].total += count;
-      subcityMap[name].accepted += acceptedCount;
+      subcityMap[name].activeSubmitted += submittedCount;
     });
 
-    // Sort subcities by total volume and slice top 3
+    // 2. Fallback scan on rawIssues if fewer subcities present in primary endpoint
+    rawIssues.forEach((issue: any) => {
+      const loc = issue.subcity || issue.location || issue.address || "";
+      if (loc) {
+        const name = normalizeSubcity(loc);
+        if (!subcityMap[name]) {
+          subcityMap[name] = { total: 1, activeSubmitted: 1 };
+        }
+      }
+    });
+
+    // 3. Ensure guaranteed top 3 items by padding subcity defaults if database total < 3
+    const defaultSubcities = ["Bole", "Yeka", "Arada", "Lideta", "Nifas Silk"];
+    for (const def of defaultSubcities) {
+      if (Object.keys(subcityMap).length >= 3) break;
+      if (!subcityMap[def]) {
+        subcityMap[def] = { total: 0, activeSubmitted: 0 };
+      }
+    }
+
+    // Sort subcities by highest total / active count and slice top 3
     let subcityLoads = Object.entries(subcityMap)
       .map(([name, data]) => {
-        const percentage = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+        const percentage = data.total > 0 ? (data.activeSubmitted / data.total) * 100 : 0;
         return {
           name,
-          accepted: data.accepted,
+          activeSubmitted: data.activeSubmitted,
           total: data.total,
           percentageWidth: `${Math.min(Math.max(percentage, 0), 100)}%`
         };
       })
-      .sort((a, b) => b.total - a.total);
+      .sort((a, b) => b.total - a.total || b.activeSubmitted - a.activeSubmitted);
 
-    // If less than 3 subcities, keep taking top available or slice up to 3
     subcityLoads = subcityLoads.slice(0, 3);
 
     // Synchronize Category Colors Map across Pie Chart & Department Legend
@@ -199,14 +223,14 @@ const AdminAnalyticsPage: React.FC = () => {
 
     return {
       subcityLoads: subcityLoads.length > 0 ? subcityLoads : [
-        { name: 'No Active Subcity Data', accepted: 0, total: 0, percentageWidth: '0%' }
+        { name: 'No Active Subcity Data', activeSubmitted: 0, total: 0, percentageWidth: '0%' }
       ],
-      categoriesPie: categoriesPie.length > 0 ? categoriesPie : [{ name: "No Open Incidents", value: 100, color: '#2C0901' }],
+      categoriesPie: categoriesPie.length > 0 ? categoriesPie : [{ name: "No Open Incidents", value: 100, count: 0, color: '#2C0901' }],
       departmentLeaderboard: departmentLeaderboard.length > 0 ? departmentLeaderboard : [
         { name: 'Operational Base Secure', escalations: '0 cases tracked', status: '- 0 Days SLA', color: '#2C0901' }
       ]
     };
-  }, [frequentIncidents, subcityData, resolutionSpeed]);
+  }, [frequentIncidents, subcityData, rawIssues, resolutionSpeed]);
 
   const organizationPerformanceData = useMemo(() => {
     return orgTriage.length > 0
@@ -312,7 +336,7 @@ const AdminAnalyticsPage: React.FC = () => {
                       <div className="flex justify-between text-[11px] font-medium">
                         <span className="text-neutral-500 font-semibold">{subcity.name}</span>
                         <span className="text-secondary font-bold">
-                          {subcity.accepted} <span className="text-neutral-600 font-normal">active of</span> {subcity.total} issues
+                          {subcity.activeSubmitted} <span className="text-neutral-600 font-normal">active of</span> {subcity.total} issues
                         </span>
                       </div>
                       <div className="w-full bg-neutral-100 h-1 rounded-full overflow-hidden">
@@ -445,11 +469,44 @@ const AdminAnalyticsPage: React.FC = () => {
               <h3 className="text-[13px] font-black tracking-tight text-secondary">Category Breakdown Ratios</h3>
             </div>
 
-            <div className="relative min-h-45 w-full flex items-center justify-center">
+            <div className="relative h-64 w-full flex items-center justify-center">
               {isLoading ? (
                 <SkeletonPulse className="w-40 h-40 rounded-full" />
               ) : (
-                <BasePieChart data={processedMetrics.categoriesPie} />
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={processedMetrics.categoriesPie}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      innerRadius={45}
+                      paddingAngle={4}
+                      stroke="none"
+                      label={({ value }) => `${value}%`}
+                      labelLine={false}
+                    >
+                      {processedMetrics.categoriesPie.map((entry: { color: string | undefined; }, index: any) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-[#2C0901] text-white px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xl border border-white/10">
+                              <p className="text-neutral-200">{data.name}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               )}
             </div>
 
