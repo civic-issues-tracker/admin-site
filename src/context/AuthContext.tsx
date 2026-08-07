@@ -30,7 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUserState] = useState<User | null>(() => {
-    const savedUser = sessionStorage.getItem('user');
+    const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
@@ -47,9 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setUser = useCallback((newUser: User | null) => {
     setUserState(newUser);
     if (newUser) {
-      sessionStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem('user', JSON.stringify(newUser));
     } else {
-      sessionStorage.removeItem('user');
+      localStorage.removeItem('user');
     }
   }, []);
 
