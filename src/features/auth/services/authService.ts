@@ -209,7 +209,7 @@ export const authService = {
   },
 
   refreshToken: async () => {
-    const response = await publicApi.post('/auth/token/refresh/');
+    const response = await publicApi.post('/auth/token/refresh-token/');
     return response.data;
   },
 
