@@ -1,8 +1,8 @@
 import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
 import { authService } from '../features/auth/services/authService';
-import Toast, { type ToastType } from '../components/ui/Toast';
+import Toast, { type ToastType } from '../components/ui/Toast'; 
 
-interface User {
+export interface User {
   id: string;
   user_number?: string;
   email?: string;
@@ -30,10 +30,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUserState] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
   });
 
+  // Keep isLoading false by default so mobile pages load immediately without infinite spinners
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'info' as ToastType });
 
@@ -44,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 5000);
   }, []);
 
+  // Correct wrapped setUser to keep localStorage and React state in sync
   const setUser = useCallback((newUser: User | null) => {
     setUserState(newUser);
     if (newUser) {
@@ -53,8 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const login = useCallback((user: User) => {
-    setUser(user);
+  const login = useCallback((userData: User) => {
+    setUser(userData);
     setIsLoading(false);
   }, [setUser]);
 
@@ -62,43 +68,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isLoggingOut.current) return;
     isLoggingOut.current = true;
 
-    setUser(null); 
-
+    setUser(null);
     try {
-      await authService.logout(); 
+      await authService.logout();
     } catch {
-      console.warn("Server logout cleanly bypassed or token already purged.");
+      console.warn("Server logout bypassed or session already cleared.");
     } finally {
       isLoggingOut.current = false;
-      window.location.href = '/'; 
+      window.location.href = '/';
     }
-}, [setUser]);
+  }, [setUser]);
 
-  // Store logout in a ref to prevent interval destruction when dependencies change
-  const logoutRef = useRef(logout);
-  useEffect(() => {
-    logoutRef.current = logout;
-  }, [logout]);
-
-  // Stable Silent Refresh Heartbeat
+  // Handle visibility changes on mobile (e.g. user unlocks phone or returns to app tab)
   useEffect(() => {
     if (!user) return;
 
-    const REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Decreased to 20 mins to give a 10-min safety buffer before 30-min expiry
-
-    const triggerSilentRefresh = async () => {
-      try {
-        await authService.refreshToken();
-      } catch (error) {
-        console.error("Background session refresh failed:", error);
-        logoutRef.current();
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          await authService.refreshToken();
+        } catch (error) {
+          console.warn("Mobile wake refresh failed:", error);
+          // Don't auto-logout here; let the actual API request retry or interceptor manage 401s
+        }
       }
     };
 
-    const intervalId = setInterval(triggerSilentRefresh, REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user]);
+
+  // Periodic silent refresh heartbeat
+  useEffect(() => {
+    if (!user) return;
+
+    const REFRESH_INTERVAL_MS = 25 * 60 * 1000; // 25 minutes
+
+    const intervalId = setInterval(async () => {
+      try {
+        await authService.refreshToken();
+      } catch (error) {
+        console.error("Background refresh failed:", error);
+      }
+    }, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [!!user]); 
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ 
@@ -107,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading, 
       login, 
       logout,
-      setUser,
+      setUser, // Passed wrapped method instead of raw setUserState
       showToast
     }}>
       {children}
