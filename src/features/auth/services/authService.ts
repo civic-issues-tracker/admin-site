@@ -66,8 +66,8 @@ privateApi.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       
       // If the request that failed is the actual refresh request, DO NOT loop. Log out.
-      if (originalRequest.url?.includes('/auth/refresh-token/')) {
-        sessionStorage.removeItem('user');
+      if (originalRequest.url?.includes('/auth/token/refresh-token/')) {
+        localStorage.removeItem('user');
         setAuthHeader(null);
         window.location.href = '/login';
         return Promise.reject(error);
@@ -92,7 +92,7 @@ privateApi.interceptors.response.use(
       try {
         // 3. Request a new access token from the backend
         // This runs on publicApi to avoid adding headers, but passes cookies
-        const res = await publicApi.post('/auth/refresh-token/', {}, { withCredentials: true });
+        const res = await publicApi.post('/auth/token/refresh-token/', {}, { withCredentials: true });
         
         // Extract the new access token from the backend response
         const newAccessToken = res.data.access;
@@ -110,7 +110,7 @@ privateApi.interceptors.response.use(
         isRefreshing = false;
         
         // Only kick them out if we are absolutely sure the refresh token is dead/expired
-        sessionStorage.removeItem('user');
+        localStorage.removeItem('user');
         setAuthHeader(null);
         window.location.href = '/login';
         return Promise.reject(err);
