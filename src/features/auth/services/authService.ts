@@ -66,7 +66,7 @@ privateApi.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       
       // If the request that failed is the actual refresh request, DO NOT loop. Log out.
-      if (originalRequest.url?.includes('/auth/token/refresh-token/')) {
+      if (originalRequest.url?.includes('/auth/refresh-token/')) {
         localStorage.removeItem('user');
         setAuthHeader(null);
         window.location.href = '/login';
@@ -92,7 +92,7 @@ privateApi.interceptors.response.use(
       try {
         // 3. Request a new access token from the backend
         // This runs on publicApi to avoid adding headers, but passes cookies
-        const res = await publicApi.post('/auth/token/refresh-token/', {}, { withCredentials: true });
+        const res = await publicApi.post('/auth/refresh-token/', {}, { withCredentials: true });
         
         // Extract the new access token from the backend response
         const newAccessToken = res.data.access;
@@ -209,7 +209,7 @@ export const authService = {
   },
 
   refreshToken: async () => {
-    const response = await publicApi.post('/auth/token/refresh-token/');
+    const response = await publicApi.post('/auth/refresh-token/');
     return response.data;
   },
 
