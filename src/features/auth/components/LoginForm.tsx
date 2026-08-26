@@ -12,6 +12,15 @@ import { authService } from '../../../features/auth/services/authService';
 import { isOrganizationAdminRole } from '../../../lib/roleUtils';
 // import { useGoogleLogin } from '@react-oauth/google';
 
+const normalizeEthiopianPhone = (value: string) => {
+  const clean = value.replace(/[\s-]/g, '');
+  if (clean.startsWith('+251')) return clean;
+  if (clean.startsWith('251')) return `+${clean}`;
+  if (clean.startsWith('0') && clean.length === 10) return `+251${clean.slice(1)}`;
+  if ((clean.startsWith('9') || clean.startsWith('7')) && clean.length === 9) return `+251${clean}`;
+  return clean;
+};
+
 const loginSchema = z.object({
   identifier: z.string().min(1, "Phone or Email is required"),
   password: z.string().min(1, "Password is required"),
@@ -49,9 +58,13 @@ const LoginForm: React.FC = () => {
 
     setLoading(true);
     try {
+      const formattedIdentifier = forgotMethod === 'sms' 
+        ? normalizeEthiopianPhone(forgotIdentifier) 
+        : forgotIdentifier;
+
       const payload = forgotMethod === 'email' 
-        ? { email: forgotIdentifier } 
-        : { phone: forgotIdentifier };
+        ? { email: formattedIdentifier } 
+        : { phone: formattedIdentifier };
 
       const result = await authService.forgotPassword(payload); 
       
@@ -66,7 +79,7 @@ const LoginForm: React.FC = () => {
           showToast("Reset session not returned by server. Try again.", "error");
           return;
         }
-        setTimeout(() => navigate(`/reset-password?temp_id=${result.temp_id}&phone=${forgotIdentifier}`), 2000);
+        setTimeout(() => navigate(`/reset-password?temp_id=${result.temp_id}&phone=${encodeURIComponent(formattedIdentifier)}`), 2000);
       }
     } catch  {
       showToast("User not found or request failed.", "error");
@@ -80,9 +93,11 @@ const LoginForm: React.FC = () => {
     setServerError(null);
     
     const isEmail = data.identifier.includes('@');
+    const formattedIdentifier = isEmail ? data.identifier : normalizeEthiopianPhone(data.identifier);
+
     const payload = isEmail 
-      ? { email: data.identifier, password: data.password }
-      : { phone: data.identifier, password: data.password };
+      ? { email: formattedIdentifier, password: data.password }
+      : { phone: formattedIdentifier, password: data.password };
 
     try {
       const result = await authService.login(payload);
@@ -125,8 +140,6 @@ const LoginForm: React.FC = () => {
     }
   };
 
-
-
 //   const handleGoogleLogin = useGoogleLogin({
 //   flow: 'auth-code',
 //   onSuccess: async (codeResponse) => {
@@ -136,7 +149,7 @@ const LoginForm: React.FC = () => {
 //       console.log("Logged in successfully:", response);
 //     } catch (error) {
 //       showToast("Error logging in with Google", "error");
-//     } finally {
+//     } fontally {
 //       setIsGoogleLoading(false);
 //     }
 //   }, // TypeScript infers codeResponse automatically now!
@@ -220,13 +233,13 @@ const LoginForm: React.FC = () => {
 
           </button> */}
 
-          <button 
+          {/* <button 
             type="button"
             onClick={() => navigate('/signup')}
             className="text-[9px] font-black uppercase tracking-[0.3em] text-secondary hover:text-secondary transition-colors text-left"
           >
             New here? <span className="text-secondary border-b border-secondary/20 ml-1">Create Account</span>
-          </button>
+          </button> */}
         </motion.form>
       ) : (
         <motion.form 

@@ -17,7 +17,7 @@ const normalizeEthiopianPhone = (value: string) => {
   if (clean.startsWith('+251')) return clean;
   if (clean.startsWith('251')) return `+${clean}`;
   if (clean.startsWith('0') && clean.length === 10) return `+251${clean.slice(1)}`;
-  if (clean.startsWith('9') && clean.length === 9) return `+251${clean}`;
+  if ((clean.startsWith('9') || clean.startsWith('7')) && clean.length === 9) return `+251${clean}`;
   return clean;
 };
 
@@ -30,7 +30,7 @@ const signupSchema = z.object({
   phone: z.string()
     .min(9, "Phone number is too short")
     .max(13, "Phone number is too long")
-    .refine((val) => /^(?:\+251|251|0)?9\d{8}$/.test(val.replace(/[\s-]/g, '')), "Use a valid Ethiopian number (e.g. +2519XXXXXXXX)"),
+    .refine((val) => /^(?:\+251|251|0)?[97]\d{8}$/.test(val.replace(/[\s-]/g, '')), "Use a valid Ethiopian number (e.g. 09XXXXXXXX or 07XXXXXXXX)"),
   email: z.string()
     .email("Invalid email address"),
   password: z.string()
